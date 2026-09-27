@@ -22,6 +22,7 @@ pub struct Query {
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Expr {
     Text(String),
+    Tag(String),
     And(Vec<Expr>),
 }
 
@@ -29,6 +30,7 @@ impl Expr {
     fn matches(&self, subject: &Subject) -> bool {
         match self {
             Expr::Text(word) => subject.text.contains(word.as_str()),
+            Expr::Tag(tag) => subject.tags.contains(tag),
             Expr::And(exprs) => exprs.iter().all(|e| e.matches(subject)),
         }
     }
@@ -41,7 +43,10 @@ impl Query {
     pub fn parse(input: &str) -> Result<Query, ParseError> {
         let words = input
             .split_whitespace()
-            .map(|w| Expr::Text(normalize(w)))
+            .map(|w| match w.strip_prefix('#') {
+                Some(tag) => Expr::Tag(normalize(tag)),
+                None => Expr::Text(normalize(w)),
+            })
             .collect();
         Ok(Query {
             expr: Expr::And(words),
@@ -90,12 +95,16 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn a_hash_matches_a_whole_tag() {}
+        fn a_hash_matches_a_whole_tag() {
+            assert!(hits("#solo", "game-a/opening{solo}.mp4"));
+            assert!(hits("#がぎぐ", "ガギグ/opening.mp4"));
+            assert!(!hits("#solo", "game-a/opening.mp4"));
+        }
 
         #[test]
-        #[ignore = "todo"]
-        fn a_hash_does_not_match_part_of_a_tag() {}
+        fn a_hash_does_not_match_part_of_a_tag() {
+            assert!(!hits("#game-a", "game-a-tour/song.mp4"));
+        }
 
         #[test]
         #[ignore = "todo"]
