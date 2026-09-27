@@ -16,3 +16,18 @@ cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 cargo test
 ```
+
+### Building for Windows (from Linux / WSL)
+
+Cross-compile to `x86_64-pc-windows-gnu` with mingw-w64.
+The exe only needs the DLLs that come with Windows, so a single `vjfind.exe` is enough.
+
+```
+sudo apt install mingw-w64   # if not installed yet
+rustup target add x86_64-pc-windows-gnu
+cargo build --release --target x86_64-pc-windows-gnu
+# → target/x86_64-pc-windows-gnu/release/vjfind.exe
+```
+
+We avoid the msvc target (cargo-xwin). It uses Microsoft's CRT and Windows SDK,
+whose license expects them to be used together with Visual Studio.
