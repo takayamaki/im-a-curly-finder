@@ -5,6 +5,8 @@
 //! - Spaces mean AND, `|` means OR (binds tighter than AND), a leading `-` means NOT
 //! - `( )` groups terms. Put a word with spaces in `"..."`
 
+use crate::normalize::normalize;
+
 /// What a query is matched against. Both fields must already be [`crate::normalize::normalize`]d.
 pub struct Subject<'a> {
     /// Path relative to the root
@@ -23,7 +25,7 @@ pub enum ParseError {}
 impl Query {
     pub fn parse(input: &str) -> Result<Query, ParseError> {
         Ok(Query {
-            word: input.to_string(),
+            word: normalize(input),
         })
     }
 
@@ -57,8 +59,10 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn a_word_is_compared_after_normalization() {}
+        fn a_word_is_compared_after_normalization() {
+            assert!(hits("あいう", "game-a/アイウ.mp4"));
+            assert!(hits("ｍｖ", "game-a/MV/song.mp4"));
+        }
 
         #[test]
         #[ignore = "todo"]
