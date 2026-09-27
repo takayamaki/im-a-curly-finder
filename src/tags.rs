@@ -9,7 +9,10 @@ pub fn path_tags(rel: &str) -> Vec<String> {
     let file_name = segments.pop().unwrap_or_default();
     let mut tags = Vec::new();
     for folder in segments {
-        tags.push(level_name(folder));
+        let level = level_name(folder);
+        if !level.is_empty() {
+            tags.push(level);
+        }
         tags.extend(brace_tags(folder));
     }
     tags.extend(brace_tags(file_name));
@@ -93,8 +96,12 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn a_folder_named_only_with_braces_gives_no_level_tag() {}
+        fn a_folder_named_only_with_braces_gives_no_level_tag() {
+            assert_eq!(
+                path_tags("{self-shot}/250926/song.mp4"),
+                ["self-shot", "250926"]
+            );
+        }
 
         #[test]
         #[ignore = "todo"]
