@@ -11,13 +11,16 @@ struct Cli {
     /// Root directory to search
     #[arg(long, env = "VJFIND_ROOT")]
     root: PathBuf,
+    /// Print the results as JSON
+    #[arg(long, global = true)]
+    json: bool,
     #[command(subcommand)]
     command: Command,
 }
 
 #[derive(Subcommand)]
 enum Command {
-    /// Print the absolute path of each matching file, one per line
+    /// Print the absolute path of each matching file, one per line (with --json, also the tags and name parts)
     Query {
         /// e.g. `opening #solo #3D|#2D -#self-shot`
         expr: String,
@@ -38,10 +41,21 @@ fn main() -> ExitCode {
             let Ok(found) = index.query(&expr) else {
                 return ExitCode::FAILURE;
             };
-            for entry in found {
-                println!("{}", entry.path.display());
+            if cli.json {
+                print_json(&found);
+            } else {
+                for entry in found {
+                    println!("{}", entry.path.display());
+                }
             }
         }
     }
     ExitCode::SUCCESS
+}
+
+fn print_json(value: &impl serde::Serialize) {
+    println!(
+        "{}",
+        serde_json::to_string_pretty(value).expect("serializable")
+    );
 }

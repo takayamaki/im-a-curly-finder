@@ -35,8 +35,29 @@ fn query_prints_matching_paths_one_per_line() {
 }
 
 #[test]
-#[ignore = "todo"]
-fn query_with_json_prints_entries_as_json() {}
+fn query_with_json_prints_entries_as_json() {
+    let dir = tempfile::tempdir().unwrap();
+    touch(dir.path(), "game-a/MV{3D}/opening{solo}.mp4");
+
+    let output = vjfind(dir.path())
+        .args(["--json", "query", "#solo"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(
+        json,
+        serde_json::json!([{
+            "path": dir.path().join("game-a/MV{3D}/opening{solo}.mp4"),
+            "rel": "game-a/MV{3D}/opening{solo}.mp4",
+            "dir": "game-a/MV{3D}",
+            "name": "opening{solo}.mp4",
+            "stem": "opening{solo}",
+            "ext": "mp4",
+            "tags": ["3D", "solo"],
+        }])
+    );
+}
 
 #[test]
 #[ignore = "todo"]
