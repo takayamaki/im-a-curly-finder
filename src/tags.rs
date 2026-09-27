@@ -9,28 +9,48 @@ pub fn path_tags(rel: &str) -> Vec<String> {
     let file_name = segments.pop().unwrap_or_default();
     let mut tags = Vec::new();
     for folder in segments {
-        tags.push(folder.to_string());
+        tags.push(level_name(folder));
         tags.extend(brace_tags(folder));
     }
     tags.extend(brace_tags(file_name));
     tags
 }
 
+/// A directory name as a tag: `{...}` removed and surrounding spaces trimmed.
+fn level_name(folder: &str) -> String {
+    let mut name = String::new();
+    let mut rest = 0;
+    for span in brace_spans(folder) {
+        name.push_str(&folder[rest..span.start]);
+        rest = span.end;
+    }
+    name.push_str(&folder[rest..]);
+    name.trim().to_string()
+}
+
 fn brace_tags(segment: &str) -> Vec<String> {
-    let mut tags = Vec::new();
+    brace_spans(segment)
+        .into_iter()
+        .map(|span| segment[span.start + 1..span.end - 1].to_string())
+        .collect()
+}
+
+/// Byte range from `{` to `}` (with the braces).
+fn brace_spans(segment: &str) -> Vec<std::ops::Range<usize>> {
+    let mut spans = Vec::new();
     let mut open: Option<usize> = None;
     for (i, c) in segment.char_indices() {
         match c {
-            '{' => open = Some(i + c.len_utf8()),
+            '{' => open = Some(i),
             '}' => {
                 if let Some(start) = open.take() {
-                    tags.push(segment[start..i].to_string());
+                    spans.push(start..i + c.len_utf8());
                 }
             }
             _ => {}
         }
     }
-    tags
+    spans
 }
 
 #[cfg(test)]
@@ -68,8 +88,9 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn a_level_tag_leaves_out_the_braces_in_the_folder_name() {}
+        fn a_level_tag_leaves_out_the_braces_in_the_folder_name() {
+            assert_eq!(path_tags("live {3D}/good morning.mp4"), ["live", "3D"]);
+        }
 
         #[test]
         #[ignore = "todo"]
