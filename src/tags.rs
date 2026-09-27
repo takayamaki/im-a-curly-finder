@@ -6,8 +6,27 @@
 /// Returns the tags of a path relative to the root (`/`-separated), in order of appearance.
 pub fn path_tags(rel: &str) -> Vec<String> {
     let mut segments: Vec<&str> = rel.split('/').collect();
-    segments.pop();
-    segments.into_iter().map(str::to_string).collect()
+    let file_name = segments.pop().unwrap_or_default();
+    let mut tags: Vec<String> = segments.into_iter().map(str::to_string).collect();
+    tags.extend(brace_tags(file_name));
+    tags
+}
+
+fn brace_tags(segment: &str) -> Vec<String> {
+    let mut tags = Vec::new();
+    let mut open: Option<usize> = None;
+    for (i, c) in segment.char_indices() {
+        match c {
+            '{' => open = Some(i + c.len_utf8()),
+            '}' => {
+                if let Some(start) = open.take() {
+                    tags.push(segment[start..i].to_string());
+                }
+            }
+            _ => {}
+        }
+    }
+    tags
 }
 
 #[cfg(test)]
@@ -29,8 +48,9 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn a_brace_in_the_file_name_becomes_a_tag() {}
+        fn a_brace_in_the_file_name_becomes_a_tag() {
+            assert_eq!(path_tags("game-a/opening{solo}.mp4"), ["game-a", "solo"]);
+        }
 
         #[test]
         #[ignore = "todo"]
