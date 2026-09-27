@@ -34,12 +34,26 @@ enum Token {
     Bar,
     Open,
     Close,
+    /// A `-` at the start of a word
+    Minus,
+    /// A `#` at the start of a word
+    Hash,
 }
 
+/// Inside `"..."`, symbols and spaces are part of the word.
 fn tokenize(input: &str) -> Vec<Token> {
     let mut tokens = Vec::new();
     let mut word = String::new();
+    let mut quoted = false;
     for c in input.chars() {
+        if quoted {
+            if c == '"' {
+                quoted = false;
+            } else {
+                word.push(c);
+            }
+            continue;
+        }
         let symbol = match c {
             '|' => Some(Token::Bar),
             '(' => Some(Token::Open),
@@ -51,6 +65,12 @@ fn tokenize(input: &str) -> Vec<Token> {
                 tokens.push(Token::Word(std::mem::take(&mut word)));
             }
             tokens.extend(symbol);
+        } else if c == '"' {
+            quoted = true;
+        } else if word.is_empty() && c == '-' {
+            tokens.push(Token::Minus);
+        } else if word.is_empty() && c == '#' {
+            tokens.push(Token::Hash);
         } else {
             word.push(c);
         }
@@ -61,9 +81,9 @@ fn tokenize(input: &str) -> Vec<Token> {
     tokens
 }
 
-/// and  := or*
-/// or   := term ('|' term)*
-/// term := '(' and ')' | word
+/// and   := or*
+/// or    := unary ('|' unary)*
+/// unary := '-' unary | '(' and ')' | '#' word | word
 struct Parser {
     tokens: std::iter::Peekable<std::vec::IntoIter<Token>>,
 }
@@ -78,9 +98,9 @@ impl Parser {
     }
 
     fn or(&mut self) -> Result<Expr, ParseError> {
-        let mut exprs = vec![self.term()?];
+        let mut exprs = vec![self.unary()?];
         while self.tokens.next_if_eq(&Token::Bar).is_some() {
-            exprs.push(self.term()?);
+            exprs.push(self.unary()?);
         }
         Ok(if exprs.len() == 1 {
             exprs.remove(0)
@@ -89,9 +109,9 @@ impl Parser {
         })
     }
 
-    fn term(&mut self) -> Result<Expr, ParseError> {
+    fn unary(&mut self) -> Result<Expr, ParseError> {
         match self.tokens.next() {
-            Some(Token::Word(word)) => Ok(term(&word)),
+            Some(Token::Minus) => Ok(Expr::Not(Box::new(self.unary()?))),
             Some(Token::Open) => {
                 let expr = self.and()?;
                 match self.tokens.next() {
@@ -99,18 +119,13 @@ impl Parser {
                     _ => Err(ParseError::UnbalancedParen),
                 }
             }
+            Some(Token::Hash) => match self.tokens.next() {
+                Some(Token::Word(tag)) => Ok(Expr::Tag(normalize(&tag))),
+                _ => Err(ParseError::MissingTerm),
+            },
+            Some(Token::Word(word)) => Ok(Expr::Text(normalize(&word))),
             _ => Err(ParseError::MissingTerm),
         }
-    }
-}
-
-fn term(word: &str) -> Expr {
-    if let Some(rest) = word.strip_prefix('-') {
-        return Expr::Not(Box::new(term(rest)));
-    }
-    match word.strip_prefix('#') {
-        Some(tag) => Expr::Tag(normalize(tag)),
-        None => Expr::Text(normalize(word)),
     }
 }
 
@@ -229,8 +244,11 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn quotes_keep_spaces_in_a_word() {}
+        fn quotes_keep_spaces_in_a_word() {
+            assert!(hits(r#""Blue Sky""#, "mv/Blue Sky.mp4"));
+            assert!(!hits(r#""Blue Sky""#, "mv/Sky Blue.mp4"));
+            assert!(hits(r#""-(REMIX)""#, "song-(REMIX).mp4"));
+        }
 
         #[test]
         #[ignore = "todo"]
