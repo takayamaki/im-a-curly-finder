@@ -3,16 +3,30 @@
 //! - Each directory name in the path is a tag
 //! - A `{...}` in a folder or file name is a tag (files inherit the tags of their folders)
 
+/// Returns the tags of a path relative to the root (`/`-separated), in order of appearance.
+pub fn path_tags(rel: &str) -> Vec<String> {
+    let mut segments: Vec<&str> = rel.split('/').collect();
+    segments.pop();
+    segments.into_iter().map(str::to_string).collect()
+}
+
 #[cfg(test)]
 mod tests {
     mod path_tags {
-        #[test]
-        #[ignore = "todo"]
-        fn each_directory_level_becomes_a_tag() {}
+        use crate::tags::path_tags;
 
         #[test]
-        #[ignore = "todo"]
-        fn the_file_name_itself_is_not_a_level_tag() {}
+        fn each_directory_level_becomes_a_tag() {
+            assert_eq!(
+                path_tags("clips/game-a/MV/good morning.mp4"),
+                ["clips", "game-a", "MV"]
+            );
+        }
+
+        #[test]
+        fn the_file_name_itself_is_not_a_level_tag() {
+            assert!(path_tags("clip.mp4").is_empty());
+        }
 
         #[test]
         #[ignore = "todo"]
