@@ -3,6 +3,7 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, RwLock};
 
 use crate::normalize::normalize;
 use crate::query::{ParseError, Query, Subject};
@@ -183,6 +184,33 @@ impl Index {
     }
 }
 
+/// A holder for rebuilding the index without stopping searches.
+/// A rescan swaps in the new index only after it is fully built.
+pub struct SharedIndex {
+    current: RwLock<Arc<Index>>,
+}
+
+impl SharedIndex {
+    pub fn new(index: Index) -> SharedIndex {
+        SharedIndex {
+            current: RwLock::new(Arc::new(index)),
+        }
+    }
+
+    /// The current index. A snapshot stays usable even after a rescan replaces it
+    pub fn snapshot(&self) -> Arc<Index> {
+        Arc::clone(&self.current.read().unwrap_or_else(|e| e.into_inner()))
+    }
+
+    /// Scans the same root again and replaces the current index
+    pub fn rescan(&self) -> io::Result<()> {
+        let root = self.snapshot().root.clone();
+        let fresh = Arc::new(Index::scan(root)?);
+        *self.current.write().unwrap_or_else(|e| e.into_inner()) = fresh;
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs;
@@ -357,9 +385,20 @@ mod tests {
     }
 
     mod shared_index {
+        use super::touch;
+        use crate::index::{Index, SharedIndex};
+
         #[test]
-        #[ignore = "todo"]
-        fn rescan_replaces_the_index() {}
+        fn rescan_replaces_the_index() {
+            let dir = tempfile::tempdir().unwrap();
+            touch(dir.path(), "songA.mp4");
+            let shared = SharedIndex::new(Index::scan(dir.path()).unwrap());
+
+            touch(dir.path(), "songB.mp4");
+            shared.rescan().unwrap();
+
+            assert_eq!(shared.snapshot().entries.len(), 2);
+        }
 
         #[test]
         #[ignore = "todo"]
