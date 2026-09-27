@@ -60,8 +60,18 @@ fn query_with_json_prints_entries_as_json() {
 }
 
 #[test]
-#[ignore = "todo"]
-fn tags_prints_counts() {}
+fn tags_prints_counts() {
+    let dir = tempfile::tempdir().unwrap();
+    touch(dir.path(), "MV{3D}/songA{solo}.mp4");
+    touch(dir.path(), "MV{3D}/songB.mp4");
+    touch(dir.path(), "MV{３Ｄ}/songC.mp4");
+
+    vjfind(dir.path())
+        .arg("tags")
+        .assert()
+        .success()
+        .stdout("3\t3D\t(3D ×2, ３Ｄ ×1)\n1\tsolo\n");
+}
 
 #[test]
 #[ignore = "todo"]

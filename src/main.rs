@@ -25,6 +25,8 @@ enum Command {
         /// e.g. `opening #solo #3D|#2D -#self-shot`
         expr: String,
     },
+    /// Print the tags, most used first, with a breakdown of spelling variants
+    Tags,
 }
 
 fn main() -> ExitCode {
@@ -46,6 +48,25 @@ fn main() -> ExitCode {
             } else {
                 for entry in found {
                     println!("{}", entry.path.display());
+                }
+            }
+        }
+        Command::Tags => {
+            let tags = index.tags();
+            if cli.json {
+                print_json(&tags);
+            } else {
+                for tag in tags {
+                    print!("{}\t{}", tag.count, tag.tag);
+                    if tag.spellings.len() > 1 {
+                        let spellings: Vec<String> = tag
+                            .spellings
+                            .iter()
+                            .map(|s| format!("{} ×{}", s.text, s.count))
+                            .collect();
+                        print!("\t({})", spellings.join(", "));
+                    }
+                    println!();
                 }
             }
         }
