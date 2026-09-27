@@ -1,6 +1,6 @@
 //! The index. Built in memory by scanning the directory at startup.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -132,12 +132,17 @@ impl Index {
     }
 
     /// Lists the folders and files whose braces have problems, in path order.
+    /// A folder is listed once, however many files it has.
     pub fn lint(&self) -> Vec<LintItem> {
-        self.entries
-            .iter()
-            .map(|e| LintItem {
-                rel: e.rel.clone(),
-                issues: segment_issues(&e.name),
+        let mut rels = BTreeSet::new();
+        for entry in &self.entries {
+            rels.extend(entry.rel.match_indices('/').map(|(i, _)| &entry.rel[..i]));
+            rels.insert(entry.rel.as_str());
+        }
+        rels.into_iter()
+            .map(|rel| LintItem {
+                rel: rel.to_string(),
+                issues: segment_issues(rel.rsplit('/').next().unwrap_or(rel)),
             })
             .filter(|item| !item.issues.is_empty())
             .collect()
@@ -335,8 +340,20 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn reports_a_folder_once_not_per_file() {}
+        fn reports_a_folder_once_not_per_file() {
+            let index = index_of(&[
+                "live｛3D｝/day1/songA.mp4",
+                "live｛3D｝/day1/songB.mp4",
+                "live｛3D｝/day2/songC.mp4",
+            ]);
+            assert_eq!(
+                index.lint(),
+                [LintItem {
+                    rel: "live｛3D｝".to_string(),
+                    issues: vec![Issue::FullWidthBrace],
+                }]
+            );
+        }
     }
 
     mod shared_index {
