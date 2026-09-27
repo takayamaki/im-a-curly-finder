@@ -50,17 +50,29 @@ struct BraceSpan {
 }
 
 /// Full-width `｛｝` count the same as `{}` (lint asks to make them half-width).
+/// Nested `{...}` are ignored along with the outer pair, and an unclosed `{` is ignored to the end.
 fn brace_spans(segment: &str) -> Vec<BraceSpan> {
     let mut spans = Vec::new();
-    let mut open: Option<(usize, usize)> = None;
+    let mut depth = 0;
+    let mut open = (0, 0);
+    let mut nested = false;
     for (i, c) in segment.char_indices() {
         match c {
-            '{' | '｛' => open = Some((i, i + c.len_utf8())),
-            '}' | '｝' => {
-                if let Some((start, inner_start)) = open.take() {
+            '{' | '｛' => {
+                if depth == 0 {
+                    open = (i, i + c.len_utf8());
+                    nested = false;
+                } else {
+                    nested = true;
+                }
+                depth += 1;
+            }
+            '}' | '｝' if depth > 0 => {
+                depth -= 1;
+                if depth == 0 && !nested {
                     spans.push(BraceSpan {
-                        outer: start..i + c.len_utf8(),
-                        inner: inner_start..i,
+                        outer: open.0..i + c.len_utf8(),
+                        inner: open.1..i,
                     });
                 }
             }
@@ -138,12 +150,15 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn an_unclosed_brace_gives_no_tag() {}
+        fn an_unclosed_brace_gives_no_tag() {
+            assert!(path_tags("song{solo.mp4").is_empty());
+            assert!(path_tags("song{so{lo}.mp4").is_empty());
+        }
 
         #[test]
-        #[ignore = "todo"]
-        fn nested_braces_give_no_tag() {}
+        fn nested_braces_give_no_tag() {
+            assert_eq!(path_tags("song{so{lo}}{3D}.mp4"), ["3D"]);
+        }
     }
 
     mod segment_issues {
