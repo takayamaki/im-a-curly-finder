@@ -7,7 +7,11 @@
 pub fn path_tags(rel: &str) -> Vec<String> {
     let mut segments: Vec<&str> = rel.split('/').collect();
     let file_name = segments.pop().unwrap_or_default();
-    let mut tags: Vec<String> = segments.into_iter().map(str::to_string).collect();
+    let mut tags = Vec::new();
+    for folder in segments {
+        tags.push(folder.to_string());
+        tags.extend(brace_tags(folder));
+    }
     tags.extend(brace_tags(file_name));
     tags
 }
@@ -53,12 +57,15 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn a_brace_in_a_folder_name_is_inherited_by_the_files_below() {}
+        fn a_brace_in_a_folder_name_is_inherited_by_the_files_below() {
+            let tags = path_tags("game-a{3D}/song/opening.mp4");
+            assert!(tags.contains(&"3D".to_string()), "{tags:?}");
+        }
 
         #[test]
-        #[ignore = "todo"]
-        fn several_braces_in_one_name_become_several_tags() {}
+        fn several_braces_in_one_name_become_several_tags() {
+            assert_eq!(path_tags("song{3D}{solo}.mp4"), ["3D", "solo"]);
+        }
 
         #[test]
         #[ignore = "todo"]
