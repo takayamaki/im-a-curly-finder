@@ -27,6 +27,8 @@ enum Command {
     },
     /// Print the tags, most used first, with a breakdown of spelling variants
     Tags,
+    /// Print the folders and files whose braces have problems
+    Lint,
 }
 
 fn main() -> ExitCode {
@@ -67,6 +69,17 @@ fn main() -> ExitCode {
                         print!("\t({})", spellings.join(", "));
                     }
                     println!();
+                }
+            }
+        }
+        Command::Lint => {
+            let items = index.lint();
+            if cli.json {
+                print_json(&items);
+            } else {
+                for item in items {
+                    let issues: Vec<&str> = item.issues.iter().map(|i| i.describe()).collect();
+                    println!("{}\t{}", item.rel, issues.join(", "));
                 }
             }
         }

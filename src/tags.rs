@@ -29,6 +29,19 @@ pub enum Issue {
     Empty,
 }
 
+impl Issue {
+    /// A short description for people
+    pub fn describe(self) -> &'static str {
+        match self {
+            Issue::FullWidthBrace => "full-width ｛｝",
+            Issue::Unclosed => "unclosed {",
+            Issue::StrayClose => "stray }",
+            Issue::Nested => "nested {}",
+            Issue::Empty => "empty {}",
+        }
+    }
+}
+
 pub fn segment_issues(segment: &str) -> Vec<Issue> {
     scan_braces(segment).issues
 }

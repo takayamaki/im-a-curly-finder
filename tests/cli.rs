@@ -74,8 +74,18 @@ fn tags_prints_counts() {
 }
 
 #[test]
-#[ignore = "todo"]
-fn lint_prints_issues() {}
+fn lint_prints_issues() {
+    let dir = tempfile::tempdir().unwrap();
+    touch(dir.path(), "live｛3D｝/songA.mp4");
+    touch(dir.path(), "live｛3D｝/songB{so{lo}}.mp4");
+    touch(dir.path(), "songC.mp4");
+
+    vjfind(dir.path())
+        .arg("lint")
+        .assert()
+        .success()
+        .stdout("live｛3D｝\tfull-width ｛｝\nlive｛3D｝/songB{so{lo}}.mp4\tnested {}\n");
+}
 
 #[test]
 #[ignore = "todo"]
