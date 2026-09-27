@@ -41,7 +41,8 @@ enum Token {
 }
 
 /// Inside `"..."`, symbols and spaces are part of the word.
-fn tokenize(input: &str) -> Vec<Token> {
+/// `-` and `#` must be followed by a word (`# song` is an error).
+fn tokenize(input: &str) -> Result<Vec<Token>, ParseError> {
     let mut tokens = Vec::new();
     let mut word = String::new();
     let mut quoted = false;
@@ -61,6 +62,9 @@ fn tokenize(input: &str) -> Vec<Token> {
             _ => None,
         };
         if c.is_whitespace() || symbol.is_some() {
+            if word.is_empty() && matches!(tokens.last(), Some(Token::Minus | Token::Hash)) {
+                return Err(ParseError::MissingTerm);
+            }
             if !word.is_empty() {
                 tokens.push(Token::Word(std::mem::take(&mut word)));
             }
@@ -75,10 +79,13 @@ fn tokenize(input: &str) -> Vec<Token> {
             word.push(c);
         }
     }
+    if quoted {
+        return Err(ParseError::UnclosedQuote);
+    }
     if !word.is_empty() {
         tokens.push(Token::Word(word));
     }
-    tokens
+    Ok(tokens)
 }
 
 /// and   := or*
@@ -147,12 +154,14 @@ pub enum ParseError {
     MissingTerm,
     /// The numbers of `(` and `)` do not match
     UnbalancedParen,
+    /// An unclosed `"`
+    UnclosedQuote,
 }
 
 impl Query {
     pub fn parse(input: &str) -> Result<Query, ParseError> {
         let mut parser = Parser {
-            tokens: tokenize(input).into_iter().peekable(),
+            tokens: tokenize(input)?.into_iter().peekable(),
         };
         let expr = parser.and()?;
         if parser.tokens.next().is_some() {
@@ -251,29 +260,41 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn quotes_keep_spaces_in_a_tag() {}
+        fn quotes_keep_spaces_in_a_tag() {
+            assert!(hits(r#"#"Blue Sky""#, "{Blue Sky}/song.mp4"));
+        }
 
         #[test]
-        #[ignore = "todo"]
-        fn an_empty_query_matches_everything() {}
+        fn an_empty_query_matches_everything() {
+            assert!(hits("", "song.mp4"));
+            assert!(hits("　 ", "song.mp4"));
+        }
     }
 
     mod parse_errors {
-        #[test]
-        #[ignore = "todo"]
-        fn an_unclosed_parenthesis_is_an_error() {}
+        use crate::query::{ParseError, Query};
 
         #[test]
-        #[ignore = "todo"]
-        fn an_unclosed_quote_is_an_error() {}
+        fn an_unclosed_parenthesis_is_an_error() {
+            assert_eq!(Query::parse("(#3D #2D"), Err(ParseError::UnbalancedParen));
+            assert_eq!(Query::parse("#3D)"), Err(ParseError::UnbalancedParen));
+        }
 
         #[test]
-        #[ignore = "todo"]
-        fn a_dangling_bar_is_an_error() {}
+        fn an_unclosed_quote_is_an_error() {
+            assert_eq!(Query::parse(r#""Blue Sky"#), Err(ParseError::UnclosedQuote));
+        }
 
         #[test]
-        #[ignore = "todo"]
-        fn a_lone_minus_or_hash_is_an_error() {}
+        fn a_dangling_bar_is_an_error() {
+            assert_eq!(Query::parse("#3D |"), Err(ParseError::MissingTerm));
+            assert_eq!(Query::parse("| #3D"), Err(ParseError::MissingTerm));
+        }
+
+        #[test]
+        fn a_lone_minus_or_hash_is_an_error() {
+            assert_eq!(Query::parse("song -"), Err(ParseError::MissingTerm));
+            assert_eq!(Query::parse("# song"), Err(ParseError::MissingTerm));
+        }
     }
 }
