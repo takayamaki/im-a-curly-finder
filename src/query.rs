@@ -23,7 +23,18 @@ pub struct Query {
 enum Expr {
     Text(String),
     Tag(String),
+    Not(Box<Expr>),
     And(Vec<Expr>),
+}
+
+fn term(word: &str) -> Expr {
+    if let Some(rest) = word.strip_prefix('-') {
+        return Expr::Not(Box::new(term(rest)));
+    }
+    match word.strip_prefix('#') {
+        Some(tag) => Expr::Tag(normalize(tag)),
+        None => Expr::Text(normalize(word)),
+    }
 }
 
 impl Expr {
@@ -31,6 +42,7 @@ impl Expr {
         match self {
             Expr::Text(word) => subject.text.contains(word.as_str()),
             Expr::Tag(tag) => subject.tags.contains(tag),
+            Expr::Not(expr) => !expr.matches(subject),
             Expr::And(exprs) => exprs.iter().all(|e| e.matches(subject)),
         }
     }
@@ -41,13 +53,7 @@ pub enum ParseError {}
 
 impl Query {
     pub fn parse(input: &str) -> Result<Query, ParseError> {
-        let words = input
-            .split_whitespace()
-            .map(|w| match w.strip_prefix('#') {
-                Some(tag) => Expr::Tag(normalize(tag)),
-                None => Expr::Text(normalize(w)),
-            })
-            .collect();
+        let words = input.split_whitespace().map(term).collect();
         Ok(Query {
             expr: Expr::And(words),
         })
@@ -107,8 +113,11 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn a_minus_excludes_matches() {}
+        fn a_minus_excludes_matches() {
+            assert!(!hits("game-a -#solo", "game-a/song{solo}.mp4"));
+            assert!(hits("game-a -#solo", "game-a/song.mp4"));
+            assert!(!hits("-song", "game-a/song.mp4"));
+        }
 
         #[test]
         #[ignore = "todo"]
