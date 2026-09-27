@@ -36,7 +36,7 @@ fn level_name(folder: &str) -> String {
 fn brace_tags(segment: &str) -> Vec<String> {
     brace_spans(segment)
         .into_iter()
-        .map(|span| segment[span.start + 1..span.end - 1].to_string())
+        .map(|span| segment[span.start + 1..span.end - 1].trim().to_string())
         .collect()
 }
 
@@ -111,8 +111,9 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn spaces_inside_braces_are_trimmed() {}
+        fn spaces_inside_braces_are_trimmed() {
+            assert_eq!(path_tags("song{ 3D }.mp4"), ["3D"]);
+        }
 
         #[test]
         #[ignore = "todo"]
