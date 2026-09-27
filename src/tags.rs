@@ -16,6 +16,8 @@ pub fn path_tags(rel: &str) -> Vec<String> {
         tags.extend(brace_tags(folder));
     }
     tags.extend(brace_tags(file_name));
+    let mut seen = std::collections::HashSet::new();
+    tags.retain(|tag| seen.insert(tag.clone()));
     tags
 }
 
@@ -104,8 +106,9 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn the_same_tag_on_a_folder_and_a_file_is_listed_once() {}
+        fn the_same_tag_on_a_folder_and_a_file_is_listed_once() {
+            assert_eq!(path_tags("MV{3D}/song{3D}.mp4"), ["MV", "3D"]);
+        }
 
         #[test]
         #[ignore = "todo"]
