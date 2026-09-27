@@ -39,6 +39,7 @@ fn brace_tags(segment: &str) -> Vec<String> {
     brace_spans(segment)
         .into_iter()
         .map(|span| segment[span.inner].trim().to_string())
+        .filter(|tag| !tag.is_empty())
         .collect()
 }
 
@@ -132,8 +133,9 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn empty_braces_give_no_tag() {}
+        fn empty_braces_give_no_tag() {
+            assert!(path_tags("song{}{ }.mp4").is_empty());
+        }
 
         #[test]
         #[ignore = "todo"]
