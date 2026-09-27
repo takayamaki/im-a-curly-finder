@@ -109,6 +109,7 @@ fn scan_braces(segment: &str) -> Braces {
                     });
                 }
             }
+            '}' | '｝' => issues.push(Issue::StrayClose),
             _ => {}
         }
     }
@@ -219,8 +220,9 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn a_stray_closing_brace_is_reported() {}
+        fn a_stray_closing_brace_is_reported() {
+            assert_eq!(segment_issues("songsolo}.mp4"), [Issue::StrayClose]);
+        }
 
         #[test]
         #[ignore = "todo"]
