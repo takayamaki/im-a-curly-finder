@@ -40,11 +40,7 @@ pub enum Issue {
 }
 
 pub fn segment_issues(segment: &str) -> Vec<Issue> {
-    let mut issues = Vec::new();
-    if segment.contains(['｛', '｝']) {
-        issues.push(Issue::FullWidthBrace);
-    }
-    issues
+    scan_braces(segment).issues
 }
 
 /// A directory name as a tag: `{...}` removed and surrounding spaces trimmed.
@@ -73,10 +69,23 @@ struct BraceSpan {
     inner: Range<usize>,
 }
 
+fn brace_spans(segment: &str) -> Vec<BraceSpan> {
+    scan_braces(segment).spans
+}
+
+struct Braces {
+    spans: Vec<BraceSpan>,
+    issues: Vec<Issue>,
+}
+
 /// Full-width `｛｝` count the same as `{}` (lint asks to make them half-width).
 /// Nested `{...}` are ignored along with the outer pair, and an unclosed `{` is ignored to the end.
-fn brace_spans(segment: &str) -> Vec<BraceSpan> {
+fn scan_braces(segment: &str) -> Braces {
     let mut spans = Vec::new();
+    let mut issues = Vec::new();
+    if segment.contains(['｛', '｝']) {
+        issues.push(Issue::FullWidthBrace);
+    }
     let mut depth = 0;
     let mut open = (0, 0);
     let mut nested = false;
@@ -103,7 +112,10 @@ fn brace_spans(segment: &str) -> Vec<BraceSpan> {
             _ => {}
         }
     }
-    spans
+    if depth > 0 {
+        issues.push(Issue::Unclosed);
+    }
+    Braces { spans, issues }
 }
 
 #[cfg(test)]
@@ -202,8 +214,9 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn an_unclosed_brace_is_reported() {}
+        fn an_unclosed_brace_is_reported() {
+            assert_eq!(segment_issues("song{solo.mp4"), [Issue::Unclosed]);
+        }
 
         #[test]
         #[ignore = "todo"]
