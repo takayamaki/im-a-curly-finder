@@ -3,10 +3,41 @@
 use std::io;
 use std::path::{Path, PathBuf};
 
+use crate::tags::path_tags;
+
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Entry {
+    /// Absolute path (used when a GUI drops the file into another app)
+    pub path: PathBuf,
     /// Path relative to the root (`/`-separated)
     pub rel: String,
+    /// The directory part of `rel`. Empty for files directly under the root
+    pub dir: String,
+    pub name: String,
+    pub stem: String,
+    /// The extension without the `.`. Empty if there is none
+    pub ext: String,
+    pub tags: Vec<String>,
+}
+
+impl Entry {
+    fn new(path: PathBuf, rel: String) -> Entry {
+        let (dir, name) = rel.rsplit_once('/').unwrap_or(("", &rel));
+        // A leading `.` is not an extension separator (`.DS_Store` etc.)
+        let (stem, ext) = match name.rfind('.') {
+            Some(i) if i > 0 => (&name[..i], &name[i + 1..]),
+            _ => (name, ""),
+        };
+        Entry {
+            path,
+            dir: dir.to_string(),
+            name: name.to_string(),
+            stem: stem.to_string(),
+            ext: ext.to_string(),
+            tags: path_tags(&rel),
+            rel,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -31,7 +62,7 @@ impl Index {
                 .map(|c| c.as_os_str().to_string_lossy())
                 .collect::<Vec<_>>()
                 .join("/");
-            entries.push(Entry { rel });
+            entries.push(Entry::new(item.path().to_path_buf(), rel));
         }
         entries.sort_by(|a, b| a.rel.cmp(&b.rel));
         Ok(Index {
@@ -73,8 +104,22 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn splits_each_name_into_dir_stem_and_extension() {}
+        fn splits_each_name_into_dir_stem_and_extension() {
+            let dir = tempfile::tempdir().unwrap();
+            touch(dir.path(), "game-a/MV{3D}/opening{solo}.mp4");
+
+            let index = Index::scan(dir.path()).unwrap();
+            let entry = &index.entries[0];
+            assert_eq!(
+                entry.path,
+                dir.path().join("game-a/MV{3D}/opening{solo}.mp4")
+            );
+            assert_eq!(entry.dir, "game-a/MV{3D}");
+            assert_eq!(entry.name, "opening{solo}.mp4");
+            assert_eq!(entry.stem, "opening{solo}");
+            assert_eq!(entry.ext, "mp4");
+            assert_eq!(entry.tags, ["3D", "solo"]);
+        }
     }
 
     mod query {
