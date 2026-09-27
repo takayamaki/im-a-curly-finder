@@ -25,6 +25,69 @@ enum Expr {
     Tag(String),
     Not(Box<Expr>),
     And(Vec<Expr>),
+    Or(Vec<Expr>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Token {
+    Word(String),
+    Bar,
+}
+
+fn tokenize(input: &str) -> Vec<Token> {
+    let mut tokens = Vec::new();
+    let mut word = String::new();
+    for c in input.chars() {
+        if c.is_whitespace() || c == '|' {
+            if !word.is_empty() {
+                tokens.push(Token::Word(std::mem::take(&mut word)));
+            }
+            if c == '|' {
+                tokens.push(Token::Bar);
+            }
+        } else {
+            word.push(c);
+        }
+    }
+    if !word.is_empty() {
+        tokens.push(Token::Word(word));
+    }
+    tokens
+}
+
+/// and := or*
+/// or  := term ('|' term)*
+struct Parser {
+    tokens: std::iter::Peekable<std::vec::IntoIter<Token>>,
+}
+
+impl Parser {
+    fn and(&mut self) -> Result<Expr, ParseError> {
+        let mut exprs = Vec::new();
+        while self.tokens.peek().is_some() {
+            exprs.push(self.or()?);
+        }
+        Ok(Expr::And(exprs))
+    }
+
+    fn or(&mut self) -> Result<Expr, ParseError> {
+        let mut exprs = vec![self.term()?];
+        while self.tokens.next_if_eq(&Token::Bar).is_some() {
+            exprs.push(self.term()?);
+        }
+        Ok(if exprs.len() == 1 {
+            exprs.remove(0)
+        } else {
+            Expr::Or(exprs)
+        })
+    }
+
+    fn term(&mut self) -> Result<Expr, ParseError> {
+        match self.tokens.next() {
+            Some(Token::Word(word)) => Ok(term(&word)),
+            _ => Err(ParseError::MissingTerm),
+        }
+    }
 }
 
 fn term(word: &str) -> Expr {
@@ -44,18 +107,24 @@ impl Expr {
             Expr::Tag(tag) => subject.tags.contains(tag),
             Expr::Not(expr) => !expr.matches(subject),
             Expr::And(exprs) => exprs.iter().all(|e| e.matches(subject)),
+            Expr::Or(exprs) => exprs.iter().any(|e| e.matches(subject)),
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ParseError {}
+pub enum ParseError {
+    /// A word or tag is missing (`a |` etc.)
+    MissingTerm,
+}
 
 impl Query {
     pub fn parse(input: &str) -> Result<Query, ParseError> {
-        let words = input.split_whitespace().map(term).collect();
+        let mut parser = Parser {
+            tokens: tokenize(input).into_iter().peekable(),
+        };
         Ok(Query {
-            expr: Expr::And(words),
+            expr: parser.and()?,
         })
     }
 
@@ -120,8 +189,11 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn a_bar_matches_either_side() {}
+        fn a_bar_matches_either_side() {
+            assert!(hits("#3D|#2D", "MV{3D}/song.mp4"));
+            assert!(hits("#3D | #2D", "MV{2D}/song.mp4"));
+            assert!(!hits("#3D|#2D", "MV/song.mp4"));
+        }
 
         #[test]
         #[ignore = "todo"]
