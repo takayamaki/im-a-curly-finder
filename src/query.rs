@@ -32,19 +32,25 @@ enum Expr {
 enum Token {
     Word(String),
     Bar,
+    Open,
+    Close,
 }
 
 fn tokenize(input: &str) -> Vec<Token> {
     let mut tokens = Vec::new();
     let mut word = String::new();
     for c in input.chars() {
-        if c.is_whitespace() || c == '|' {
+        let symbol = match c {
+            '|' => Some(Token::Bar),
+            '(' => Some(Token::Open),
+            ')' => Some(Token::Close),
+            _ => None,
+        };
+        if c.is_whitespace() || symbol.is_some() {
             if !word.is_empty() {
                 tokens.push(Token::Word(std::mem::take(&mut word)));
             }
-            if c == '|' {
-                tokens.push(Token::Bar);
-            }
+            tokens.extend(symbol);
         } else {
             word.push(c);
         }
@@ -55,8 +61,9 @@ fn tokenize(input: &str) -> Vec<Token> {
     tokens
 }
 
-/// and := or*
-/// or  := term ('|' term)*
+/// and  := or*
+/// or   := term ('|' term)*
+/// term := '(' and ')' | word
 struct Parser {
     tokens: std::iter::Peekable<std::vec::IntoIter<Token>>,
 }
@@ -64,7 +71,7 @@ struct Parser {
 impl Parser {
     fn and(&mut self) -> Result<Expr, ParseError> {
         let mut exprs = Vec::new();
-        while self.tokens.peek().is_some() {
+        while self.tokens.peek().is_some_and(|t| *t != Token::Close) {
             exprs.push(self.or()?);
         }
         Ok(Expr::And(exprs))
@@ -85,6 +92,13 @@ impl Parser {
     fn term(&mut self) -> Result<Expr, ParseError> {
         match self.tokens.next() {
             Some(Token::Word(word)) => Ok(term(&word)),
+            Some(Token::Open) => {
+                let expr = self.and()?;
+                match self.tokens.next() {
+                    Some(Token::Close) => Ok(expr),
+                    _ => Err(ParseError::UnbalancedParen),
+                }
+            }
             _ => Err(ParseError::MissingTerm),
         }
     }
@@ -116,6 +130,8 @@ impl Expr {
 pub enum ParseError {
     /// A word or tag is missing (`a |` etc.)
     MissingTerm,
+    /// The numbers of `(` and `)` do not match
+    UnbalancedParen,
 }
 
 impl Query {
@@ -123,9 +139,11 @@ impl Query {
         let mut parser = Parser {
             tokens: tokenize(input).into_iter().peekable(),
         };
-        Ok(Query {
-            expr: parser.and()?,
-        })
+        let expr = parser.and()?;
+        if parser.tokens.next().is_some() {
+            return Err(ParseError::UnbalancedParen);
+        }
+        Ok(Query { expr })
     }
 
     pub fn matches(&self, subject: &Subject) -> bool {
@@ -196,12 +214,19 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn a_bar_binds_tighter_than_a_space() {}
+        fn a_bar_binds_tighter_than_a_space() {
+            // #solo AND (#3D OR #2D)
+            assert!(hits("#solo #3D|#2D", "MV{2D}/song{solo}.mp4"));
+            assert!(!hits("#solo #3D|#2D", "MV{3D}/song.mp4"));
+        }
 
         #[test]
-        #[ignore = "todo"]
-        fn parentheses_group_terms() {}
+        fn parentheses_group_terms() {
+            let query = "(#3D #solo)|#self-shot";
+            assert!(hits(query, "MV{3D}/song{solo}.mp4"));
+            assert!(hits(query, "{self-shot}/song.mp4"));
+            assert!(!hits(query, "MV{3D}/song.mp4"));
+        }
 
         #[test]
         #[ignore = "todo"]
