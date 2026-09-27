@@ -39,8 +39,12 @@ pub enum Issue {
     Empty,
 }
 
-pub fn segment_issues(_segment: &str) -> Vec<Issue> {
-    Vec::new()
+pub fn segment_issues(segment: &str) -> Vec<Issue> {
+    let mut issues = Vec::new();
+    if segment.contains(['｛', '｝']) {
+        issues.push(Issue::FullWidthBrace);
+    }
+    issues
 }
 
 /// A directory name as a tag: `{...}` removed and surrounding spaces trimmed.
@@ -182,7 +186,7 @@ mod tests {
     }
 
     mod segment_issues {
-        use crate::tags::segment_issues;
+        use crate::tags::{Issue, segment_issues};
 
         #[test]
         fn a_clean_name_has_no_issues() {
@@ -190,8 +194,12 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn full_width_braces_are_reported() {}
+        fn full_width_braces_are_reported() {
+            assert_eq!(
+                segment_issues("song｛solo｝｛3D｝.mp4"),
+                [Issue::FullWidthBrace]
+            );
+        }
 
         #[test]
         #[ignore = "todo"]
