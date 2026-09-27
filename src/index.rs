@@ -1,5 +1,6 @@
 //! The index. Built in memory by scanning the directory at startup.
 
+use std::collections::HashMap;
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -58,6 +59,14 @@ pub struct Index {
     pub entries: Vec<Entry>,
 }
 
+/// One row of [`Index::tags`].
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct TagCount {
+    pub tag: String,
+    /// Number of files with this tag
+    pub count: usize,
+}
+
 impl Index {
     /// Builds an index from a list of relative paths, without scanning.
     pub fn from_rels(root: impl AsRef<Path>, rels: impl IntoIterator<Item = String>) -> Index {
@@ -68,6 +77,23 @@ impl Index {
             root: root.to_path_buf(),
             entries,
         }
+    }
+
+    /// Lists the tags, most used first. Meant for spotting typos by eye.
+    pub fn tags(&self) -> Vec<TagCount> {
+        let mut counts: HashMap<&str, usize> = HashMap::new();
+        for tag in self.entries.iter().flat_map(|e| &e.tags) {
+            *counts.entry(tag).or_default() += 1;
+        }
+        let mut tags: Vec<TagCount> = counts
+            .into_iter()
+            .map(|(tag, count)| TagCount {
+                tag: tag.to_string(),
+                count,
+            })
+            .collect();
+        tags.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.tag.cmp(&b.tag)));
+        tags
     }
 
     pub fn query(&self, input: &str) -> Result<Vec<&Entry>, ParseError> {
@@ -181,14 +207,37 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn returns_the_parse_error_for_a_broken_query() {}
+        fn returns_the_parse_error_for_a_broken_query() {
+            let index = index_of(&["song.mp4"]);
+            assert_eq!(
+                index.query("(#3D").unwrap_err(),
+                crate::query::ParseError::UnbalancedParen
+            );
+        }
     }
 
     mod tags {
+        use super::index_of;
+
         #[test]
-        #[ignore = "todo"]
-        fn counts_files_per_tag_most_used_first() {}
+        fn counts_files_per_tag_most_used_first() {
+            let index = index_of(&[
+                "MV{3D}/songA{solo}.mp4",
+                "MV{3D}/songB.mp4",
+                "MV{2D}/songC{solo}.mp4",
+                "MV{3D}/songD.mp4",
+            ]);
+            let counts: Vec<(String, usize)> =
+                index.tags().into_iter().map(|t| (t.tag, t.count)).collect();
+            assert_eq!(
+                counts,
+                [
+                    ("3D".to_string(), 3),
+                    ("solo".to_string(), 2),
+                    ("2D".to_string(), 1)
+                ]
+            );
+        }
 
         #[test]
         #[ignore = "todo"]
