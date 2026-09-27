@@ -2,7 +2,18 @@
 //! and upper and lower case as the same.
 
 pub fn normalize(s: &str) -> String {
-    s.to_lowercase()
+    s.chars()
+        .map(hiragana_to_katakana)
+        .collect::<String>()
+        .to_lowercase()
+}
+
+/// Shifts ぁ(U+3041)..ゖ(U+3096) to ァ(U+30A1)..ヶ(U+30F6).
+fn hiragana_to_katakana(c: char) -> char {
+    match c {
+        '\u{3041}'..='\u{3096}' => char::from_u32(c as u32 + 0x60).unwrap_or(c),
+        _ => c,
+    }
 }
 
 #[cfg(test)]
@@ -16,8 +27,9 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn turns_hiragana_into_katakana() {}
+        fn turns_hiragana_into_katakana() {
+            assert_eq!(normalize("あいう！アイウ"), "アイウ！アイウ");
+        }
 
         #[test]
         #[ignore = "todo"]
@@ -26,9 +38,5 @@ mod tests {
         #[test]
         #[ignore = "todo"]
         fn turns_half_width_katakana_into_full_width() {}
-
-        #[test]
-        #[ignore = "todo"]
-        fn turns_hiragana_vu_into_katakana_vu() {}
     }
 }
