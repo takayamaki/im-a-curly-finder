@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use crate::normalize::normalize;
 use crate::query::{ParseError, Query, Subject};
-use crate::tags::path_tags;
+use crate::tags::{Issue, path_tags, segment_issues};
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Entry {
@@ -75,6 +75,14 @@ pub struct Spelling {
     pub count: usize,
 }
 
+/// One row of [`Index::lint`]: one folder or one file.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct LintItem {
+    /// Path relative to the root (`/`-separated)
+    pub rel: String,
+    pub issues: Vec<Issue>,
+}
+
 impl Index {
     /// Builds an index from a list of relative paths, without scanning.
     pub fn from_rels(root: impl AsRef<Path>, rels: impl IntoIterator<Item = String>) -> Index {
@@ -121,6 +129,18 @@ impl Index {
             .collect();
         tags.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.tag.cmp(&b.tag)));
         tags
+    }
+
+    /// Lists the folders and files whose braces have problems, in path order.
+    pub fn lint(&self) -> Vec<LintItem> {
+        self.entries
+            .iter()
+            .map(|e| LintItem {
+                rel: e.rel.clone(),
+                issues: segment_issues(&e.name),
+            })
+            .filter(|item| !item.issues.is_empty())
+            .collect()
     }
 
     pub fn query(&self, input: &str) -> Result<Vec<&Entry>, ParseError> {
@@ -288,9 +308,31 @@ mod tests {
     }
 
     mod lint {
+        use super::index_of;
+        use crate::index::LintItem;
+        use crate::tags::Issue;
+
         #[test]
-        #[ignore = "todo"]
-        fn lists_names_with_issues() {}
+        fn lists_names_with_issues() {
+            let index = index_of(&[
+                "MV{3D}/songA｛solo｝.mp4",
+                "MV{3D}/songB.mp4",
+                "songC{solo.mp4",
+            ]);
+            assert_eq!(
+                index.lint(),
+                [
+                    LintItem {
+                        rel: "MV{3D}/songA｛solo｝.mp4".to_string(),
+                        issues: vec![Issue::FullWidthBrace],
+                    },
+                    LintItem {
+                        rel: "songC{solo.mp4".to_string(),
+                        issues: vec![Issue::Unclosed],
+                    },
+                ]
+            );
+        }
 
         #[test]
         #[ignore = "todo"]
