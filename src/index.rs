@@ -1,6 +1,6 @@
 //! The index. Built in memory by scanning the directory at startup.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io;
 use std::path::{Path, PathBuf};
 
@@ -65,6 +65,14 @@ pub struct TagCount {
     pub tag: String,
     /// Number of files with this tag
     pub count: usize,
+    /// Counts per spelling that normalizes to the same tag, most used first
+    pub spellings: Vec<Spelling>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct Spelling {
+    pub text: String,
+    pub count: usize,
 }
 
 impl Index {
@@ -81,15 +89,34 @@ impl Index {
 
     /// Lists the tags, most used first. Meant for spotting typos by eye.
     pub fn tags(&self) -> Vec<TagCount> {
-        let mut counts: HashMap<&str, usize> = HashMap::new();
-        for tag in self.entries.iter().flat_map(|e| &e.tags) {
-            *counts.entry(tag).or_default() += 1;
+        // normalized tag -> (file count, count per spelling)
+        let mut groups: HashMap<&str, (usize, HashMap<&str, usize>)> = HashMap::new();
+        for entry in &self.entries {
+            let mut seen = HashSet::new();
+            for (tag, key) in entry.tags.iter().zip(&entry.tag_keys) {
+                let (count, spellings) = groups.entry(key).or_default();
+                if seen.insert(key) {
+                    *count += 1;
+                }
+                *spellings.entry(tag).or_default() += 1;
+            }
         }
-        let mut tags: Vec<TagCount> = counts
-            .into_iter()
-            .map(|(tag, count)| TagCount {
-                tag: tag.to_string(),
-                count,
+        let mut tags: Vec<TagCount> = groups
+            .into_values()
+            .map(|(count, spellings)| {
+                let mut spellings: Vec<Spelling> = spellings
+                    .into_iter()
+                    .map(|(text, count)| Spelling {
+                        text: text.to_string(),
+                        count,
+                    })
+                    .collect();
+                spellings.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.text.cmp(&b.text)));
+                TagCount {
+                    tag: spellings[0].text.clone(),
+                    count,
+                    spellings,
+                }
             })
             .collect();
         tags.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.tag.cmp(&b.tag)));
@@ -240,8 +267,24 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn groups_spellings_that_normalize_to_the_same_tag() {}
+        fn groups_spellings_that_normalize_to_the_same_tag() {
+            let index = index_of(&[
+                "MV{3D}/songA.mp4",
+                "MV{3D}/songB.mp4",
+                "MV{３Ｄ}/songC.mp4",
+                "MV/songD{3d}.mp4",
+            ]);
+            let tags = index.tags();
+            assert_eq!(tags.len(), 1);
+            assert_eq!(tags[0].tag, "3D");
+            assert_eq!(tags[0].count, 4);
+            let spellings: Vec<(&str, usize)> = tags[0]
+                .spellings
+                .iter()
+                .map(|s| (s.text.as_str(), s.count))
+                .collect();
+            assert_eq!(spellings, [("3D", 2), ("3d", 1), ("３Ｄ", 1)]);
+        }
     }
 
     mod lint {
