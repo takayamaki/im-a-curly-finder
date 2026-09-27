@@ -158,6 +158,18 @@ pub enum ParseError {
     UnclosedQuote,
 }
 
+impl std::fmt::Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            ParseError::MissingTerm => "missing a word after |, - or #",
+            ParseError::UnbalancedParen => "unbalanced ( and )",
+            ParseError::UnclosedQuote => "unclosed \"",
+        })
+    }
+}
+
+impl std::error::Error for ParseError {}
+
 impl Query {
     pub fn parse(input: &str) -> Result<Query, ParseError> {
         let mut parser = Parser {

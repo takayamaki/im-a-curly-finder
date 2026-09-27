@@ -88,5 +88,14 @@ fn lint_prints_issues() {
 }
 
 #[test]
-#[ignore = "todo"]
-fn a_broken_query_exits_with_an_error() {}
+fn a_broken_query_exits_with_an_error() {
+    let dir = tempfile::tempdir().unwrap();
+    touch(dir.path(), "song.mp4");
+
+    vjfind(dir.path())
+        .args(["query", "(#3D"])
+        .assert()
+        .failure()
+        .stdout("")
+        .stderr("vjfind: query: unbalanced ( and )\n");
+}

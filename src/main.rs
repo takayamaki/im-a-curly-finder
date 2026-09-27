@@ -42,8 +42,12 @@ fn main() -> ExitCode {
     };
     match cli.command {
         Command::Query { expr } => {
-            let Ok(found) = index.query(&expr) else {
-                return ExitCode::FAILURE;
+            let found = match index.query(&expr) {
+                Ok(found) => found,
+                Err(e) => {
+                    eprintln!("vjfind: query: {e}");
+                    return ExitCode::FAILURE;
+                }
             };
             if cli.json {
                 print_json(&found);
