@@ -3,6 +3,8 @@
 //! - Each directory name in the path is a tag
 //! - A `{...}` in a folder or file name is a tag (files inherit the tags of their folders)
 
+use std::ops::Range;
+
 /// Returns the tags of a path relative to the root (`/`-separated), in order of appearance.
 pub fn path_tags(rel: &str) -> Vec<String> {
     let mut segments: Vec<&str> = rel.split('/').collect();
@@ -26,8 +28,8 @@ fn level_name(folder: &str) -> String {
     let mut name = String::new();
     let mut rest = 0;
     for span in brace_spans(folder) {
-        name.push_str(&folder[rest..span.start]);
-        rest = span.end;
+        name.push_str(&folder[rest..span.outer.start]);
+        rest = span.outer.end;
     }
     name.push_str(&folder[rest..]);
     name.trim().to_string()
@@ -36,20 +38,29 @@ fn level_name(folder: &str) -> String {
 fn brace_tags(segment: &str) -> Vec<String> {
     brace_spans(segment)
         .into_iter()
-        .map(|span| segment[span.start + 1..span.end - 1].trim().to_string())
+        .map(|span| segment[span.inner].trim().to_string())
         .collect()
 }
 
-/// Byte range from `{` to `}` (with the braces).
-fn brace_spans(segment: &str) -> Vec<std::ops::Range<usize>> {
+/// Byte ranges of a `{...}`. `outer` includes the braces and `inner` does not.
+struct BraceSpan {
+    outer: Range<usize>,
+    inner: Range<usize>,
+}
+
+/// Full-width `｛｝` count the same as `{}` (lint asks to make them half-width).
+fn brace_spans(segment: &str) -> Vec<BraceSpan> {
     let mut spans = Vec::new();
-    let mut open: Option<usize> = None;
+    let mut open: Option<(usize, usize)> = None;
     for (i, c) in segment.char_indices() {
         match c {
-            '{' => open = Some(i),
-            '}' => {
-                if let Some(start) = open.take() {
-                    spans.push(start..i + c.len_utf8());
+            '{' | '｛' => open = Some((i, i + c.len_utf8())),
+            '}' | '｝' => {
+                if let Some((start, inner_start)) = open.take() {
+                    spans.push(BraceSpan {
+                        outer: start..i + c.len_utf8(),
+                        inner: inner_start..i,
+                    });
                 }
             }
             _ => {}
@@ -116,8 +127,9 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn full_width_braces_also_become_tags() {}
+        fn full_width_braces_also_become_tags() {
+            assert_eq!(path_tags("MV｛3D｝/song｛solo｝.mp4"), ["MV", "3D", "solo"]);
+        }
 
         #[test]
         #[ignore = "todo"]
