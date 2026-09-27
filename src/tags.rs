@@ -105,6 +105,9 @@ fn scan_braces(segment: &str) -> Braces {
                 if depth == 0 && nested {
                     issues.push(Issue::Nested);
                 } else if depth == 0 {
+                    if segment[open.1..i].trim().is_empty() {
+                        issues.push(Issue::Empty);
+                    }
                     spans.push(BraceSpan {
                         outer: open.0..i + c.len_utf8(),
                         inner: open.1..i,
@@ -232,7 +235,8 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn empty_braces_are_reported() {}
+        fn empty_braces_are_reported() {
+            assert_eq!(segment_issues("song{ }.mp4"), [Issue::Empty]);
+        }
     }
 }
