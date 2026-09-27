@@ -16,7 +16,22 @@ pub struct Subject<'a> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Query {
-    word: String,
+    expr: Expr,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Expr {
+    Text(String),
+    And(Vec<Expr>),
+}
+
+impl Expr {
+    fn matches(&self, subject: &Subject) -> bool {
+        match self {
+            Expr::Text(word) => subject.text.contains(word.as_str()),
+            Expr::And(exprs) => exprs.iter().all(|e| e.matches(subject)),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -24,13 +39,17 @@ pub enum ParseError {}
 
 impl Query {
     pub fn parse(input: &str) -> Result<Query, ParseError> {
+        let words = input
+            .split_whitespace()
+            .map(|w| Expr::Text(normalize(w)))
+            .collect();
         Ok(Query {
-            word: normalize(input),
+            expr: Expr::And(words),
         })
     }
 
     pub fn matches(&self, subject: &Subject) -> bool {
-        subject.text.contains(&self.word)
+        self.expr.matches(subject)
     }
 }
 
@@ -65,8 +84,10 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn words_separated_by_spaces_must_all_match() {}
+        fn words_separated_by_spaces_must_all_match() {
+            assert!(hits("game-a morning", "game-a/good morning.mp4"));
+            assert!(!hits("game-b morning", "game-a/good morning.mp4"));
+        }
 
         #[test]
         #[ignore = "todo"]
