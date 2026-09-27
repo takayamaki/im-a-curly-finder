@@ -401,7 +401,17 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn a_snapshot_taken_before_rescan_stays_usable() {}
+        fn a_snapshot_taken_before_rescan_stays_usable() {
+            let dir = tempfile::tempdir().unwrap();
+            touch(dir.path(), "songA.mp4");
+            let shared = SharedIndex::new(Index::scan(dir.path()).unwrap());
+            let before = shared.snapshot();
+
+            touch(dir.path(), "songB.mp4");
+            shared.rescan().unwrap();
+
+            assert_eq!(before.entries.len(), 1);
+            assert_eq!(before.query("song").unwrap().len(), 1);
+        }
     }
 }
