@@ -1,4 +1,4 @@
-# vjfind spec
+# I'm a Curly Finder spec
 
 A file search engine for VJs: search for a clip during a show and drop it into Resolume.
 This file is the source of truth for the technical spec (tag rules, query syntax, API).
@@ -53,7 +53,7 @@ Before matching, paths, tags and query words are all normalized like this:
 ## Library API (for a GUI)
 
 ```rust
-use vjfind::index::{Index, SharedIndex};
+use curly_finder::index::{Index, SharedIndex};
 
 let shared = SharedIndex::new(Index::scan(root)?);  // scan(root)
 let index = shared.snapshot();                       // Arc<Index>
@@ -72,12 +72,12 @@ shared.rescan()?;                                    // rebuilds, then swaps in 
 ## CLI
 
 ```
-vjfind --root <DIR> query <QUERY> [--json]
-vjfind --root <DIR> tags [--json]
-vjfind --root <DIR> lint [--json]
+curly --root <DIR> query <QUERY> [--json]
+curly --root <DIR> tags [--json]
+curly --root <DIR> lint [--json]
 ```
 
-- `--root` can also be given with the `VJFIND_ROOT` environment variable.
+- `--root` can also be given with the `CURLY_ROOT` environment variable.
 - `query` prints one absolute path per line. With `--json`, it prints an array of `Entry`.
 - `tags` prints `count<TAB>tag[<TAB>(spelling ×count, ...)]`. `lint` prints `relative path<TAB>issue, ...`.
-- A broken query prints `vjfind: query: <message>` to stderr and exits with code 1.
+- A broken query prints `curly: query: <message>` to stderr and exits with code 1.

@@ -1,7 +1,13 @@
 [package]
-name = "vjfind"
+name = "curly-finder"
 version = "0.1.0"
 edition = "2024"
+description = "I'm a Curly Finder: find files by the {tags} in their paths"
+license = "MIT"
+
+[[bin]]
+name = "curly"
+path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4.6.7", features = ["derive", "env"] }

@@ -2,14 +2,14 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
-use vjfind::index::Index;
+use curly_finder::index::Index;
 
 /// Find files by the {tags} in their paths and names
 #[derive(Parser)]
 #[command(version)]
 struct Cli {
     /// Root directory to search
-    #[arg(long, env = "VJFIND_ROOT")]
+    #[arg(long, env = "CURLY_ROOT")]
     root: PathBuf,
     /// Print the results as JSON
     #[arg(long, global = true)]
@@ -36,7 +36,7 @@ fn main() -> ExitCode {
     let index = match Index::scan(&cli.root) {
         Ok(index) => index,
         Err(e) => {
-            eprintln!("vjfind: {}: {e}", cli.root.display());
+            eprintln!("curly: {}: {e}", cli.root.display());
             return ExitCode::FAILURE;
         }
     };
@@ -45,7 +45,7 @@ fn main() -> ExitCode {
             let found = match index.query(&expr) {
                 Ok(found) => found,
                 Err(e) => {
-                    eprintln!("vjfind: query: {e}");
+                    eprintln!("curly: query: {e}");
                     return ExitCode::FAILURE;
                 }
             };

@@ -9,8 +9,8 @@ fn touch(root: &Path, rel: &str) {
     fs::write(path, b"").unwrap();
 }
 
-fn vjfind(root: &Path) -> Command {
-    let mut cmd = Command::cargo_bin("vjfind").unwrap();
+fn curly(root: &Path) -> Command {
+    let mut cmd = Command::cargo_bin("curly").unwrap();
     cmd.arg("--root").arg(root);
     cmd
 }
@@ -27,7 +27,7 @@ fn query_prints_matching_paths_one_per_line() {
         dir.path().join("game-a/MV{3D}/opening.mp4").display(),
         dir.path().join("game-b/MV{3D}/good night!.mp4").display(),
     );
-    vjfind(dir.path())
+    curly(dir.path())
         .args(["query", "#3D"])
         .assert()
         .success()
@@ -39,7 +39,7 @@ fn query_with_json_prints_entries_as_json() {
     let dir = tempfile::tempdir().unwrap();
     touch(dir.path(), "game-a/MV{3D}/opening{solo}.mp4");
 
-    let output = vjfind(dir.path())
+    let output = curly(dir.path())
         .args(["--json", "query", "#solo"])
         .output()
         .unwrap();
@@ -66,7 +66,7 @@ fn tags_prints_counts() {
     touch(dir.path(), "MV{3D}/songB.mp4");
     touch(dir.path(), "MV{３Ｄ}/songC.mp4");
 
-    vjfind(dir.path())
+    curly(dir.path())
         .arg("tags")
         .assert()
         .success()
@@ -80,7 +80,7 @@ fn lint_prints_issues() {
     touch(dir.path(), "live｛3D｝/songB{so{lo}}.mp4");
     touch(dir.path(), "songC.mp4");
 
-    vjfind(dir.path())
+    curly(dir.path())
         .arg("lint")
         .assert()
         .success()
@@ -92,10 +92,10 @@ fn a_broken_query_exits_with_an_error() {
     let dir = tempfile::tempdir().unwrap();
     touch(dir.path(), "song.mp4");
 
-    vjfind(dir.path())
+    curly(dir.path())
         .args(["query", "(#3D"])
         .assert()
         .failure()
         .stdout("")
-        .stderr("vjfind: query: unbalanced ( and )\n");
+        .stderr("curly: query: unbalanced ( and )\n");
 }
