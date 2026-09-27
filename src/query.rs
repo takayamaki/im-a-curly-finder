@@ -190,13 +190,13 @@ mod tests {
         #[test]
         fn a_hash_matches_a_whole_tag() {
             assert!(hits("#solo", "game-a/opening{solo}.mp4"));
-            assert!(hits("#がぎぐ", "ガギグ/opening.mp4"));
+            assert!(hits("#がぎぐ", "{ガギグ}/opening.mp4"));
             assert!(!hits("#solo", "game-a/opening.mp4"));
         }
 
         #[test]
         fn a_hash_does_not_match_part_of_a_tag() {
-            assert!(!hits("#game-a", "game-a-tour/song.mp4"));
+            assert!(!hits("#game-a", "{game-a-tour}/song.mp4"));
         }
 
         #[test]
