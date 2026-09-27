@@ -1,12 +1,19 @@
 //! Normalization for matching. Treats full-width and half-width, hiragana and katakana,
 //! and upper and lower case as the same.
 
+pub fn normalize(s: &str) -> String {
+    s.to_lowercase()
+}
+
 #[cfg(test)]
 mod tests {
     mod normalize {
+        use crate::normalize::normalize;
+
         #[test]
-        #[ignore = "todo"]
-        fn lowercases_ascii_letters() {}
+        fn lowercases_ascii_letters() {
+            assert_eq!(normalize("CinderellaGirls"), "cinderellagirls");
+        }
 
         #[test]
         #[ignore = "todo"]
