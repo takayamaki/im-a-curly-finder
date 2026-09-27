@@ -1,8 +1,10 @@
 //! Normalization for matching. Treats full-width and half-width, hiragana and katakana,
 //! and upper and lower case as the same.
 
+use unicode_normalization::UnicodeNormalization;
+
 pub fn normalize(s: &str) -> String {
-    s.chars()
+    s.nfkc()
         .map(hiragana_to_katakana)
         .collect::<String>()
         .to_lowercase()
@@ -28,15 +30,17 @@ mod tests {
 
         #[test]
         fn turns_hiragana_into_katakana() {
-            assert_eq!(normalize("あいう！アイウ"), "アイウ！アイウ");
+            assert_eq!(normalize("あいうアイウ"), "アイウアイウ");
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn turns_full_width_ascii_into_half_width() {}
+        fn turns_full_width_ascii_into_half_width() {
+            assert_eq!(normalize("ＭＶ（３Ｄ）"), "mv(3d)");
+        }
 
         #[test]
-        #[ignore = "todo"]
-        fn turns_half_width_katakana_into_full_width() {}
+        fn turns_half_width_katakana_into_full_width() {
+            assert_eq!(normalize("ｶﾞｷﾞｸﾞ"), "ガギグ");
+        }
     }
 }
