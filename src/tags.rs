@@ -23,6 +23,26 @@ pub fn path_tags(rel: &str) -> Vec<String> {
     tags
 }
 
+/// A problem with the braces in one folder or file name.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Issue {
+    /// Full-width `｛` `｝`. They still make a tag, but should be half-width
+    FullWidthBrace,
+    /// An unclosed `{`
+    Unclosed,
+    /// A `}` without a matching `{`
+    StrayClose,
+    /// Nested `{...}`
+    Nested,
+    /// An empty `{}`
+    Empty,
+}
+
+pub fn segment_issues(_segment: &str) -> Vec<Issue> {
+    Vec::new()
+}
+
 /// A directory name as a tag: `{...}` removed and surrounding spaces trimmed.
 fn level_name(folder: &str) -> String {
     let mut name = String::new();
@@ -162,9 +182,12 @@ mod tests {
     }
 
     mod segment_issues {
+        use crate::tags::segment_issues;
+
         #[test]
-        #[ignore = "todo"]
-        fn a_clean_name_has_no_issues() {}
+        fn a_clean_name_has_no_issues() {
+            assert!(segment_issues("opening{solo}{3D} [abcDEF12345].mp4").is_empty());
+        }
 
         #[test]
         #[ignore = "todo"]
