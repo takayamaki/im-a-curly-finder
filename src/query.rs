@@ -5,12 +5,56 @@
 //! - Spaces mean AND, `|` means OR (binds tighter than AND), a leading `-` means NOT
 //! - `( )` groups terms. Put a word with spaces in `"..."`
 
+/// What a query is matched against. Both fields must already be [`crate::normalize::normalize`]d.
+pub struct Subject<'a> {
+    /// Path relative to the root
+    pub text: &'a str,
+    pub tags: &'a [String],
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Query {
+    word: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ParseError {}
+
+impl Query {
+    pub fn parse(input: &str) -> Result<Query, ParseError> {
+        Ok(Query {
+            word: input.to_string(),
+        })
+    }
+
+    pub fn matches(&self, subject: &Subject) -> bool {
+        subject.text.contains(&self.word)
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use super::{Query, Subject};
+    use crate::normalize::normalize;
+    use crate::tags::path_tags;
+
+    fn hits(query: &str, rel: &str) -> bool {
+        let text = normalize(rel);
+        let tags: Vec<String> = path_tags(rel).iter().map(|t| normalize(t)).collect();
+        Query::parse(query).unwrap().matches(&Subject {
+            text: &text,
+            tags: &tags,
+        })
+    }
+
     mod matches {
+        use super::hits;
+
         #[test]
-        #[ignore = "todo"]
-        fn a_word_matches_part_of_the_path() {}
+        fn a_word_matches_part_of_the_path() {
+            assert!(hits("morning", "game-a/good morning.mp4"));
+            assert!(!hits("morning", "game-b/good night!.mp4"));
+        }
 
         #[test]
         #[ignore = "todo"]
