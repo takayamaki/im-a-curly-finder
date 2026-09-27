@@ -3,6 +3,8 @@
 use std::io;
 use std::path::{Path, PathBuf};
 
+use crate::normalize::normalize;
+use crate::query::{ParseError, Query, Subject};
 use crate::tags::path_tags;
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -18,10 +20,18 @@ pub struct Entry {
     /// The extension without the `.`. Empty if there is none
     pub ext: String,
     pub tags: Vec<String>,
+    /// `rel`, normalized for matching
+    #[serde(skip)]
+    text_key: String,
+    /// `tags`, normalized for matching
+    #[serde(skip)]
+    tag_keys: Vec<String>,
 }
 
 impl Entry {
-    fn new(path: PathBuf, rel: String) -> Entry {
+    fn new(root: &Path, rel: String) -> Entry {
+        let path = rel.split('/').fold(root.to_path_buf(), |p, c| p.join(c));
+        let tags = path_tags(&rel);
         let (dir, name) = rel.rsplit_once('/').unwrap_or(("", &rel));
         // A leading `.` is not an extension separator (`.DS_Store` etc.)
         let (stem, ext) = match name.rfind('.') {
@@ -34,7 +44,9 @@ impl Entry {
             name: name.to_string(),
             stem: stem.to_string(),
             ext: ext.to_string(),
-            tags: path_tags(&rel),
+            text_key: normalize(&rel),
+            tag_keys: tags.iter().map(|t| normalize(t)).collect(),
+            tags,
             rel,
         }
     }
@@ -47,10 +59,35 @@ pub struct Index {
 }
 
 impl Index {
+    /// Builds an index from a list of relative paths, without scanning.
+    pub fn from_rels(root: impl AsRef<Path>, rels: impl IntoIterator<Item = String>) -> Index {
+        let root = root.as_ref();
+        let mut entries: Vec<Entry> = rels.into_iter().map(|rel| Entry::new(root, rel)).collect();
+        entries.sort_by(|a, b| a.rel.cmp(&b.rel));
+        Index {
+            root: root.to_path_buf(),
+            entries,
+        }
+    }
+
+    pub fn query(&self, input: &str) -> Result<Vec<&Entry>, ParseError> {
+        let query = Query::parse(input)?;
+        Ok(self
+            .entries
+            .iter()
+            .filter(|e| {
+                query.matches(&Subject {
+                    text: &e.text_key,
+                    tags: &e.tag_keys,
+                })
+            })
+            .collect())
+    }
+
     /// Scans the files under `root` recursively. Directories themselves are not indexed.
     pub fn scan(root: impl AsRef<Path>) -> io::Result<Index> {
         let root = root.as_ref();
-        let mut entries = Vec::new();
+        let mut rels = Vec::new();
         for item in walkdir::WalkDir::new(root).min_depth(1) {
             let item = item?;
             if !item.file_type().is_file() {
@@ -62,13 +99,9 @@ impl Index {
                 .map(|c| c.as_os_str().to_string_lossy())
                 .collect::<Vec<_>>()
                 .join("/");
-            entries.push(Entry::new(item.path().to_path_buf(), rel));
+            rels.push(rel);
         }
-        entries.sort_by(|a, b| a.rel.cmp(&b.rel));
-        Ok(Index {
-            root: root.to_path_buf(),
-            entries,
-        })
+        Ok(Index::from_rels(root, rels))
     }
 }
 
@@ -122,10 +155,30 @@ mod tests {
         }
     }
 
+    fn index_of(rels: &[&str]) -> crate::index::Index {
+        crate::index::Index::from_rels("/vj", rels.iter().map(|r| r.to_string()))
+    }
+
+    fn rels(entries: &[&crate::index::Entry]) -> Vec<String> {
+        entries.iter().map(|e| e.rel.clone()).collect()
+    }
+
     mod query {
+        use super::{index_of, rels};
+
         #[test]
-        #[ignore = "todo"]
-        fn returns_the_matching_entries_in_path_order() {}
+        fn returns_the_matching_entries_in_path_order() {
+            let index = index_of(&[
+                "game-a/MV{3D}/opening.mp4",
+                "game-a/MV{3D}/Blue Sky.mp4",
+                "game-b/MV{3D}/good night!.mp4",
+            ]);
+            let found = index.query("GAME-A #3d").unwrap();
+            assert_eq!(
+                rels(&found),
+                ["game-a/MV{3D}/Blue Sky.mp4", "game-a/MV{3D}/opening.mp4"]
+            );
+        }
 
         #[test]
         #[ignore = "todo"]
