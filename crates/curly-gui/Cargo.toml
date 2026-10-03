@@ -12,13 +12,14 @@ required-features = ["app"]
 
 [features]
 # The Tauri app. Off by default so that the library builds and tests without WebView libraries.
-app = ["dep:tauri", "dep:tauri-plugin-drag", "dep:tauri-build"]
+app = ["dep:tauri", "dep:tauri-plugin-dialog", "dep:tauri-plugin-drag", "dep:tauri-build"]
 
 [dependencies]
 curly-finder = { path = "../curly-finder" }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 tauri = { version = "2.12.1", optional = true }
+tauri-plugin-dialog = { version = "2.8.1", optional = true }
 tauri-plugin-drag = { version = "2.1.1", optional = true }
 
 [build-dependencies]

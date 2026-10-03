@@ -9,7 +9,9 @@
   header { display: flex; gap: 8px; padding: 8px; border-bottom: 1px solid #333; }
   #q { flex: 1; padding: 6px 8px; font-size: 16px; background: #2a2a2a; color: #eee; border: 1px solid #555; border-radius: 4px; }
   button { background: #2a2a2a; color: #ddd; border: 1px solid #555; border-radius: 4px; padding: 0 12px; cursor: pointer; }
-  #status { padding: 4px 8px; color: #999; font-size: 12px; }
+  #bar { display: flex; gap: 12px; padding: 4px 8px; font-size: 12px; color: #999; }
+  #folder { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #status { white-space: nowrap; }
   #status.error { color: #f77; }
   ul { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
   li { padding: 4px 8px; border-bottom: 1px solid #2c2c2c; cursor: grab; user-select: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -20,16 +22,18 @@
 </head>
 <body>
 <header>
+  <button id="choose" title="Choose the folder to search">Folder…</button>
   <input id="q" placeholder="words, #tags, | for OR, - for NOT" autofocus spellcheck="false">
   <button id="rescan" title="Scan the folder again">Rescan</button>
 </header>
-<div id="status"></div>
+<div id="bar"><span id="folder"></span><span id="status"></span></div>
 <ul id="list"></ul>
 <script>
 const { invoke, Channel } = window.__TAURI__.core;
 const q = document.getElementById("q");
 const list = document.getElementById("list");
 const status = document.getElementById("status");
+const folder = document.getElementById("folder");
 // The app icon, shown under the cursor while dragging.
 const DRAG_ICON = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAgElEQVR4nO3WwRGAMAhE0ZRqSZZoJ3p2TAiQwK4zHLjuf6dou46zIQ8a/zXgFi4UIIVdkIiwCRIdnyIy4iIiKz5EZMa7CEpAZPyDoANkxF+IAhSgAHTvAAUA/i2gAMD/ByIQ3cYMsAsx3NcAVhHithbggag2rQANxLTlBWw7OOABUrJvV5TdnlsAAAAASUVORK5CYII=";
 
@@ -72,6 +76,28 @@ async function search() {
   }
 }
 
+async function showFolder() {
+  const current = await invoke("current_folder");
+  folder.textContent = current.root ?? "No folder";
+  folder.title = current.root ?? "";
+  return current;
+}
+
+document.getElementById("choose").addEventListener("click", async () => {
+  const dir = await invoke("plugin:dialog|open", { options: { directory: true, title: "Choose the folder to search" } });
+  if (!dir) return;
+  setStatus("Scanning...");
+  try {
+    await invoke("open_folder", { dir });
+    await showFolder();
+    await search();
+  } catch (e) {
+    await showFolder();
+    await search();
+    setStatus(String(e), true);
+  }
+});
+
 document.getElementById("rescan").addEventListener("click", async () => {
   setStatus("Scanning...");
   try {
@@ -101,8 +127,11 @@ window.addEventListener("mousemove", async e => {
 });
 
 q.addEventListener("input", search);
+showFolder().then(async current => {
+  await search();
+  if (current.error) setStatus(current.error, true);
+});
 q.addEventListener("keydown", e => { if (e.key === "Escape") { q.value = ""; search(); } });
-search();
 </script>
 </body>
 </html>
