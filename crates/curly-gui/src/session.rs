@@ -38,7 +38,7 @@ impl Session {
     /// Scans the open folder again. Searches keep working while it runs.
     pub fn rescan(&self) -> Result<(), String> {
         let shared = self.current.read().unwrap().clone();
-        let shared = shared.unwrap();
+        let shared = shared.ok_or(NO_FOLDER)?;
         shared.rescan().map_err(|e| e.to_string())
     }
 
@@ -121,8 +121,10 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn rescan_before_opening_a_folder_is_an_error() {}
+        fn rescan_before_opening_a_folder_is_an_error() {
+            let session = Session::new();
+            assert_eq!(session.rescan().unwrap_err(), NO_FOLDER);
+        }
 
         #[test]
         #[ignore = "todo"]
