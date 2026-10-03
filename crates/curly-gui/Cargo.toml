@@ -7,3 +7,4 @@ license = "MIT"
 
 [dependencies]
 curly-finder = { path = "../curly-finder" }
+serde = { version = "1.0.229", features = ["derive"] }

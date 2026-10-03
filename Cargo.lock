@@ -154,6 +154,7 @@ name = "curly-gui"
 version = "0.1.0"
 dependencies = [
  "curly-finder",
+ "serde",
 ]
 
 [[package]]
