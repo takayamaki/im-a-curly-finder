@@ -201,16 +201,25 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn removes_tags_from_folder_names() {}
+        fn removes_tags_from_folder_names() {
+            assert_eq!(
+                strip_tags("MV{3D}/day1 {live}/song.mp4"),
+                "MV/day1 /song.mp4"
+            );
+        }
 
         #[test]
-        #[ignore = "todo"]
-        fn removes_full_width_braces_too() {}
+        fn removes_full_width_braces_too() {
+            assert_eq!(strip_tags("MV｛3D｝/song｛solo｝.mp4"), "MV/song.mp4");
+        }
 
         #[test]
-        #[ignore = "todo"]
-        fn keeps_braces_that_are_not_tags() {}
+        fn keeps_braces_that_are_not_tags() {
+            assert_eq!(strip_tags("song{ }.mp4"), "song{ }.mp4");
+            assert_eq!(strip_tags("song{so{lo}}.mp4"), "song{so{lo}}.mp4");
+            assert_eq!(strip_tags("song{solo.mp4"), "song{solo.mp4");
+            assert_eq!(strip_tags("song}{3D}.mp4"), "song}.mp4");
+        }
     }
 
     mod segment_issues {
