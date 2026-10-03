@@ -13,7 +13,7 @@ pub struct Found {
 }
 
 pub fn search(index: &Index, expr: &str, limit: usize) -> Result<Found, String> {
-    let matches = index.query(expr).unwrap();
+    let matches = index.query(expr).map_err(|e| e.to_string())?;
     Ok(Found {
         total: matches.len(),
         entries: matches.into_iter().take(limit).cloned().collect(),
@@ -71,7 +71,9 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn returns_the_error_message_for_a_broken_query() {}
+        fn returns_the_error_message_for_a_broken_query() {
+            let index = index_of(&["a.mp4"]);
+            assert_eq!(search(&index, "(a", 100).unwrap_err(), "unbalanced ( and )");
+        }
     }
 }
