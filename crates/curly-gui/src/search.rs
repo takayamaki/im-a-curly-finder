@@ -71,6 +71,14 @@ mod tests {
         }
 
         #[test]
+        #[ignore = "todo"]
+        fn returns_the_tags_of_the_matches_most_used_first() {}
+
+        #[test]
+        #[ignore = "todo"]
+        fn counts_the_tags_of_matches_beyond_the_limit() {}
+
+        #[test]
         fn returns_the_error_message_for_a_broken_query() {
             let index = index_of(&["a.mp4"]);
             assert_eq!(search(&index, "(a", 100).unwrap_err(), "unbalanced ( and )");
