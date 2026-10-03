@@ -164,6 +164,24 @@ mod tests {
         }
     }
 
+    mod strip_tags {
+        #[test]
+        #[ignore = "todo"]
+        fn removes_a_tag_from_the_file_name() {}
+
+        #[test]
+        #[ignore = "todo"]
+        fn removes_tags_from_folder_names() {}
+
+        #[test]
+        #[ignore = "todo"]
+        fn removes_full_width_braces_too() {}
+
+        #[test]
+        #[ignore = "todo"]
+        fn keeps_braces_that_are_not_tags() {}
+    }
+
     mod segment_issues {
         use crate::tags::{Issue, segment_issues};
 

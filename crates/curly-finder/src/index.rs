@@ -294,6 +294,10 @@ mod tests {
                 crate::query::ParseError::UnbalancedParen
             );
         }
+
+        #[test]
+        #[ignore = "todo"]
+        fn a_word_does_not_match_inside_a_tag() {}
     }
 
     mod tags {
