@@ -1,6 +1,6 @@
 //! Searching the index for the result list.
 
-use curly_finder::index::{Entry, Index};
+use curly_finder::index::{Entry, Index, TagCount, count_tags};
 use serde::Serialize;
 
 /// What the result list shows.
@@ -10,12 +10,15 @@ pub struct Found {
     pub entries: Vec<Entry>,
     /// Number of all matches
     pub total: usize,
+    /// The tags of all matches, most used first
+    pub tags: Vec<TagCount>,
 }
 
 pub fn search(index: &Index, expr: &str, limit: usize) -> Result<Found, String> {
     let matches = index.query(expr).map_err(|e| e.to_string())?;
     Ok(Found {
         total: matches.len(),
+        tags: count_tags(matches.iter().copied()),
         entries: matches.into_iter().take(limit).cloned().collect(),
     })
 }
@@ -32,8 +35,16 @@ mod tests {
         found.entries.iter().map(|e| e.rel.as_str()).collect()
     }
 
+    fn tag_counts(found: &super::Found) -> Vec<(&str, usize)> {
+        found
+            .tags
+            .iter()
+            .map(|t| (t.tag.as_str(), t.count))
+            .collect()
+    }
+
     mod search {
-        use super::{index_of, rels};
+        use super::{index_of, rels, tag_counts};
         use crate::search::search;
 
         #[test]
@@ -71,8 +82,16 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn returns_the_tags_of_the_matches_most_used_first() {}
+        fn returns_the_tags_of_the_matches_most_used_first() {
+            let index = index_of(&[
+                "MV{3D}/songA{solo}.mp4",
+                "MV{3D}/songB.mp4",
+                "MV{2D}/songC{solo}.mp4",
+                "live{3D}/songD{solo}.mp4",
+            ]);
+            let found = search(&index, "MV", 100).unwrap();
+            assert_eq!(tag_counts(&found), [("3D", 2), ("solo", 2), ("2D", 1)]);
+        }
 
         #[test]
         #[ignore = "todo"]
