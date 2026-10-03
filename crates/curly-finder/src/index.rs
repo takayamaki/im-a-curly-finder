@@ -98,38 +98,7 @@ impl Index {
 
     /// Lists the tags, most used first. Meant for spotting typos by eye.
     pub fn tags(&self) -> Vec<TagCount> {
-        // normalized tag -> (file count, count per spelling)
-        let mut groups: HashMap<&str, (usize, HashMap<&str, usize>)> = HashMap::new();
-        for entry in &self.entries {
-            let mut seen = HashSet::new();
-            for (tag, key) in entry.tags.iter().zip(&entry.tag_keys) {
-                let (count, spellings) = groups.entry(key).or_default();
-                if seen.insert(key) {
-                    *count += 1;
-                }
-                *spellings.entry(tag).or_default() += 1;
-            }
-        }
-        let mut tags: Vec<TagCount> = groups
-            .into_values()
-            .map(|(count, spellings)| {
-                let mut spellings: Vec<Spelling> = spellings
-                    .into_iter()
-                    .map(|(text, count)| Spelling {
-                        text: text.to_string(),
-                        count,
-                    })
-                    .collect();
-                spellings.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.text.cmp(&b.text)));
-                TagCount {
-                    tag: spellings[0].text.clone(),
-                    count,
-                    spellings,
-                }
-            })
-            .collect();
-        tags.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.tag.cmp(&b.tag)));
-        tags
+        count_tags(&self.entries)
     }
 
     /// Lists the folders and files whose braces have problems, in path order.
@@ -182,6 +151,43 @@ impl Index {
         }
         Ok(Index::from_rels(root, rels))
     }
+}
+
+/// Counts the tags of `entries`, most used first.
+/// Spellings that normalize to the same tag are counted together.
+pub fn count_tags<'a>(entries: impl IntoIterator<Item = &'a Entry>) -> Vec<TagCount> {
+    // normalized tag -> (file count, count per spelling)
+    let mut groups: HashMap<&str, (usize, HashMap<&str, usize>)> = HashMap::new();
+    for entry in entries {
+        let mut seen = HashSet::new();
+        for (tag, key) in entry.tags.iter().zip(&entry.tag_keys) {
+            let (count, spellings) = groups.entry(key).or_default();
+            if seen.insert(key) {
+                *count += 1;
+            }
+            *spellings.entry(tag).or_default() += 1;
+        }
+    }
+    let mut tags: Vec<TagCount> = groups
+        .into_values()
+        .map(|(count, spellings)| {
+            let mut spellings: Vec<Spelling> = spellings
+                .into_iter()
+                .map(|(text, count)| Spelling {
+                    text: text.to_string(),
+                    count,
+                })
+                .collect();
+            spellings.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.text.cmp(&b.text)));
+            TagCount {
+                tag: spellings[0].text.clone(),
+                count,
+                spellings,
+            }
+        })
+        .collect();
+    tags.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.tag.cmp(&b.tag)));
+    tags
 }
 
 /// A holder for rebuilding the index without stopping searches.
