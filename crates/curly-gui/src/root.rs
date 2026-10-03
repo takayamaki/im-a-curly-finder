@@ -5,8 +5,7 @@ use std::path::PathBuf;
 
 /// Picks the root from the first command-line argument, then from `CURLY_ROOT`.
 pub fn resolve(arg: Option<OsString>, var: Option<OsString>) -> Option<PathBuf> {
-    let _ = var;
-    arg.map(PathBuf::from)
+    arg.or(var).map(PathBuf::from)
 }
 
 #[cfg(test)]
@@ -25,8 +24,12 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn falls_back_to_the_curly_root_variable() {}
+        fn falls_back_to_the_curly_root_variable() {
+            assert_eq!(
+                resolve(None, Some(r"D:\clips".into())),
+                Some(PathBuf::from(r"D:\clips"))
+            );
+        }
 
         #[test]
         #[ignore = "todo"]
