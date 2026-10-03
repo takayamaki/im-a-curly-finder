@@ -1,6 +1,6 @@
 //! The folder that is open now and its index.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
 use curly_finder::index::{Index, SharedIndex};
@@ -25,6 +25,14 @@ impl Session {
         let index = Index::scan(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
         *self.current.write().unwrap() = Some(Arc::new(SharedIndex::new(index)));
         Ok(())
+    }
+
+    /// The open folder, if any.
+    pub fn root(&self) -> Option<PathBuf> {
+        let current = self.current.read().unwrap();
+        current
+            .as_ref()
+            .map(|shared| shared.snapshot().root.clone())
     }
 
     /// Searches the open folder. See [`crate::search::search`].
@@ -68,8 +76,12 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn tells_which_folder_is_open() {}
+        fn tells_which_folder_is_open() {
+            let dir = tempfile::tempdir().unwrap();
+            let session = Session::new();
+            session.open(dir.path()).unwrap();
+            assert_eq!(session.root().as_deref(), Some(dir.path()));
+        }
 
         #[test]
         #[ignore = "todo"]
