@@ -17,7 +17,7 @@ impl Settings {
         let Ok(text) = std::fs::read_to_string(path) else {
             return Settings::default();
         };
-        serde_json::from_str(&text).unwrap()
+        serde_json::from_str(&text).unwrap_or_default()
     }
 
     /// Writes the settings to `path`.
@@ -67,7 +67,11 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn loads_no_root_when_the_file_is_broken() {}
+        fn loads_no_root_when_the_file_is_broken() {
+            let dir = tempfile::tempdir().unwrap();
+            let file = dir.path().join("settings.json");
+            std::fs::write(&file, "{ not json").unwrap();
+            assert_eq!(Settings::load(&file), Settings::default());
+        }
     }
 }
