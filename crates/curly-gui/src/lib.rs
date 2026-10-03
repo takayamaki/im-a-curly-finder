@@ -2,3 +2,5 @@
 
 pub mod root;
 pub mod search;
+pub mod session;
+pub mod settings;

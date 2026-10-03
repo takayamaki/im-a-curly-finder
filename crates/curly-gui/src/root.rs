@@ -32,6 +32,10 @@ mod tests {
         }
 
         #[test]
+        #[ignore = "todo"]
+        fn falls_back_to_the_saved_folder() {}
+
+        #[test]
         fn returns_none_when_neither_is_given() {
             assert_eq!(resolve(None, None), None);
         }
@@ -43,5 +47,9 @@ mod tests {
                 Some(PathBuf::from(r"D:\a"))
             );
         }
+
+        #[test]
+        #[ignore = "todo"]
+        fn prefers_the_variable_over_the_saved_folder() {}
     }
 }
