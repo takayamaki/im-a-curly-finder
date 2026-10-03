@@ -58,7 +58,11 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn prefers_the_variable_over_the_saved_folder() {}
+        fn prefers_the_variable_over_the_saved_folder() {
+            assert_eq!(
+                resolve(None, Some(r"D:\a".into()), Some(PathBuf::from(r"D:\b"))),
+                Some(PathBuf::from(r"D:\a"))
+            );
+        }
     }
 }
