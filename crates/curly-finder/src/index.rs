@@ -330,8 +330,10 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn fails_when_the_root_cannot_be_read() {}
+        fn fails_when_the_root_cannot_be_read() {
+            let dir = tempfile::tempdir().unwrap();
+            assert!(Index::scan(dir.path().join("missing")).is_err());
+        }
     }
 
     fn index_of(rels: &[&str]) -> crate::index::Index {
