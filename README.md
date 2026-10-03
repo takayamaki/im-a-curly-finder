@@ -12,10 +12,12 @@ See [docs/spec.md](docs/spec.md) for the tag rules and the query syntax.
 curly --root 'D:\clips' query 'opening #solo #3D|#2D -#self-shot'
 curly --root 'D:\clips' tags
 curly --root 'D:\clips' lint
-curly-gui.exe 'D:\clips'
+curly-gui.exe
 ```
 
 Both take the folder from `CURLY_ROOT` too.
+In the GUI, you can also choose the folder with the Folder button. It is remembered for the next start.
+The GUI opens the first one it finds of: the first argument, `CURLY_ROOT`, the folder chosen last time.
 
 ## Development
 
