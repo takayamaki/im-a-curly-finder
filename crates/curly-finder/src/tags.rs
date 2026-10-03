@@ -13,6 +13,34 @@ pub fn path_tags(rel: &str) -> Vec<String> {
     tags
 }
 
+/// Removes the `{...}` that are tags from a path, so that words match only outside tags.
+pub fn strip_tags(rel: &str) -> String {
+    rel.split('/')
+        .map(strip_segment_tags)
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
+fn strip_segment_tags(segment: &str) -> String {
+    let mut out = String::new();
+    let mut from = 0;
+    for span in scan_braces(segment).spans {
+        if segment[span.clone()].trim().is_empty() {
+            continue;
+        }
+        // Widen the contents to include the braces around them.
+        let open = segment[..span.start]
+            .chars()
+            .next_back()
+            .map_or(0, char::len_utf8);
+        let close = segment[span.end..].chars().next().map_or(0, char::len_utf8);
+        out.push_str(&segment[from..span.start - open]);
+        from = span.end + close;
+    }
+    out.push_str(&segment[from..]);
+    out
+}
+
 /// A problem with the braces in one folder or file name.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -165,9 +193,12 @@ mod tests {
     }
 
     mod strip_tags {
+        use crate::tags::strip_tags;
+
         #[test]
-        #[ignore = "todo"]
-        fn removes_a_tag_from_the_file_name() {}
+        fn removes_a_tag_from_the_file_name() {
+            assert_eq!(strip_tags("game-a/opening{solo}.mp4"), "game-a/opening.mp4");
+        }
 
         #[test]
         #[ignore = "todo"]
