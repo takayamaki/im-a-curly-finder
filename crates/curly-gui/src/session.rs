@@ -69,7 +69,7 @@ mod tests {
 
     mod session {
         use super::{rels, touch};
-        use crate::session::Session;
+        use crate::session::{NO_FOLDER, Session};
 
         #[test]
         fn finds_files_in_the_opened_folder() {
@@ -115,8 +115,10 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn search_before_opening_a_folder_is_an_error() {}
+        fn search_before_opening_a_folder_is_an_error() {
+            let session = Session::new();
+            assert_eq!(session.search("", 100).unwrap_err(), NO_FOLDER);
+        }
 
         #[test]
         #[ignore = "todo"]
