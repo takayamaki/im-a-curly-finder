@@ -32,11 +32,16 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn returns_none_when_neither_is_given() {}
+        fn returns_none_when_neither_is_given() {
+            assert_eq!(resolve(None, None), None);
+        }
 
         #[test]
-        #[ignore = "todo"]
-        fn prefers_the_argument_over_the_variable() {}
+        fn prefers_the_argument_over_the_variable() {
+            assert_eq!(
+                resolve(Some(r"D:\a".into()), Some(r"D:\b".into())),
+                Some(PathBuf::from(r"D:\a"))
+            );
+        }
     }
 }
