@@ -614,6 +614,7 @@ version = "0.1.0"
 dependencies = [
  "curly-finder",
  "serde",
+ "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-drag",
