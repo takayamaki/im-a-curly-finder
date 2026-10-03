@@ -23,6 +23,9 @@ impl Settings {
     /// Writes the settings to `path`.
     pub fn save(&self, path: &Path) -> io::Result<()> {
         let text = serde_json::to_string_pretty(self).map_err(io::Error::other)?;
+        if let Some(dir) = path.parent() {
+            std::fs::create_dir_all(dir)?;
+        }
         std::fs::write(path, text)
     }
 }
@@ -53,8 +56,15 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn creates_the_folder_of_the_file_when_saving() {}
+        fn creates_the_folder_of_the_file_when_saving() {
+            let dir = tempfile::tempdir().unwrap();
+            let file = dir.path().join("config/curly/settings.json");
+            let settings = Settings {
+                root: Some(PathBuf::from(r"D:\clips")),
+            };
+            settings.save(&file).unwrap();
+            assert_eq!(Settings::load(&file), settings);
+        }
 
         #[test]
         #[ignore = "todo"]
