@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>I'm a Curly Finder</title>
+<style>
+  :root { color-scheme: dark; }
+  body { font: 14px system-ui, sans-serif; margin: 0; background: #1e1e1e; color: #ddd; display: flex; flex-direction: column; height: 100vh; }
+  header { display: flex; gap: 8px; padding: 8px; border-bottom: 1px solid #333; }
+  #q { flex: 1; padding: 6px 8px; font-size: 16px; background: #2a2a2a; color: #eee; border: 1px solid #555; border-radius: 4px; }
+  button { background: #2a2a2a; color: #ddd; border: 1px solid #555; border-radius: 4px; padding: 0 12px; cursor: pointer; }
+  #status { padding: 4px 8px; color: #999; font-size: 12px; }
+  #status.error { color: #f77; }
+  ul { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
+  li { padding: 4px 8px; border-bottom: 1px solid #2c2c2c; cursor: grab; user-select: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  li:hover { background: #333; }
+  .dir { color: #888; }
+  .tag { color: #e6a; margin-left: 6px; }
+</style>
+</head>
+<body>
+<header>
+  <input id="q" placeholder="words, #tags, | for OR, - for NOT" autofocus spellcheck="false">
+  <button id="rescan" title="Scan the folder again">Rescan</button>
+</header>
+<div id="status"></div>
+<ul id="list"></ul>
+<script>
+const { invoke, Channel } = window.__TAURI__.core;
+const q = document.getElementById("q");
+const list = document.getElementById("list");
+const status = document.getElementById("status");
+// The app icon, shown under the cursor while dragging.
+const DRAG_ICON = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAgElEQVR4nO3WwRGAMAhE0ZRqSZZoJ3p2TAiQwK4zHLjuf6dou46zIQ8a/zXgFi4UIIVdkIiwCRIdnyIy4iIiKz5EZMa7CEpAZPyDoANkxF+IAhSgAHTvAAUA/i2gAMD/ByIQ3cYMsAsx3NcAVhHithbggag2rQANxLTlBWw7OOABUrJvV5TdnlsAAAAASUVORK5CYII=";
+
+function setStatus(text, isError = false) {
+  status.textContent = text;
+  status.className = isError ? "error" : "";
+}
+
+function row(entry) {
+  const li = document.createElement("li");
+  if (entry.dir) {
+    const dir = document.createElement("span");
+    dir.className = "dir";
+    dir.textContent = entry.dir + "/";
+    li.append(dir);
+  }
+  li.append(entry.name);
+  for (const tag of entry.tags) {
+    const t = document.createElement("span");
+    t.className = "tag";
+    t.textContent = "#" + tag;
+    li.append(t);
+  }
+  li.dataset.path = entry.path;
+  li.title = entry.path;
+  return li;
+}
+
+let latest = 0;
+async function search() {
+  const ticket = ++latest;
+  try {
+    const found = await invoke("query", { expr: q.value });
+    if (ticket !== latest) return;
+    const shown = found.entries.length;
+    setStatus(shown < found.total ? `${found.total} files (showing ${shown})` : `${found.total} files`);
+    list.replaceChildren(...found.entries.map(row));
+  } catch (e) {
+    if (ticket === latest) setStatus(String(e), true);
+  }
+}
+
+document.getElementById("rescan").addEventListener("click", async () => {
+  setStatus("Scanning...");
+  try {
+    await invoke("rescan");
+    await search();
+  } catch (e) {
+    setStatus(String(e), true);
+  }
+});
+
+// Start a native drag once the mouse moves a few pixels with the button held.
+let pressed = null;
+list.addEventListener("mousedown", e => {
+  const li = e.target.closest("li");
+  if (li && e.button === 0) pressed = { path: li.dataset.path, x: e.clientX, y: e.clientY };
+});
+window.addEventListener("mouseup", () => { pressed = null; });
+window.addEventListener("mousemove", async e => {
+  if (!pressed || Math.hypot(e.clientX - pressed.x, e.clientY - pressed.y) < 5) return;
+  const path = pressed.path;
+  pressed = null;
+  try {
+    await invoke("plugin:drag|start_drag", { item: [path], image: DRAG_ICON, options: { mode: "copy" }, onEvent: new Channel() });
+  } catch (err) {
+    setStatus("Drag failed: " + err, true);
+  }
+});
+
+q.addEventListener("input", search);
+q.addEventListener("keydown", e => { if (e.key === "Escape") { q.value = ""; search(); } });
+search();
+</script>
+</body>
+</html>

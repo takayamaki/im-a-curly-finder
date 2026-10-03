@@ -1,0 +1,13 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "I'm a Curly Finder",
+  "version": "0.1.0",
+  "identifier": "dev.takayamaki.curly-finder",
+  "build": { "frontendDist": "dist" },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [{ "title": "I'm a Curly Finder", "width": 900, "height": 640 }],
+    "security": { "csp": null }
+  },
+  "bundle": { "active": false, "icon": ["icons/icon.ico", "icons/icon.png"] }
+}

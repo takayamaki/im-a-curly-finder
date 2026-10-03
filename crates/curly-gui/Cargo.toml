@@ -5,6 +5,20 @@ edition = "2024"
 description = "I'm a Curly Finder: a GUI to find clips and drag them into other apps"
 license = "MIT"
 
+[[bin]]
+name = "curly-gui"
+path = "src/main.rs"
+required-features = ["app"]
+
+[features]
+# The Tauri app. Off by default so that the library builds and tests without WebView libraries.
+app = ["dep:tauri", "dep:tauri-plugin-drag", "dep:tauri-build"]
+
 [dependencies]
 curly-finder = { path = "../curly-finder" }
 serde = { version = "1.0.229", features = ["derive"] }
+tauri = { version = "2.12.1", optional = true }
+tauri-plugin-drag = { version = "2.1.1", optional = true }
+
+[build-dependencies]
+tauri-build = { version = "2.7.1", optional = true }
