@@ -1,6 +1,6 @@
 //! Search queries.
 //!
-//! - `word` matches any part of the path
+//! - `word` matches any part of the path outside tags
 //! - `#tag` matches a whole tag
 //! - Spaces mean AND, `|` means OR (binds tighter than AND), a leading `-` means NOT
 //! - `( )` groups terms. Put a word with spaces in `"..."`
@@ -9,7 +9,7 @@ use crate::normalize::normalize;
 
 /// What a query is matched against. Both fields must already be [`crate::normalize::normalize`]d.
 pub struct Subject<'a> {
-    /// Path relative to the root
+    /// Path relative to the root, with the tags removed
     pub text: &'a str,
     pub tags: &'a [String],
 }

@@ -37,7 +37,7 @@ Before matching, paths, tags and query words are all normalized like this:
 
 | Syntax | Meaning |
 |---|---|
-| `word` | Substring match on the whole path relative to the root |
+| `word` | Substring match on the path relative to the root, with the `{tags}` removed (a word never matches inside a tag) |
 | `#tag` | Exact match on a tag |
 | `a b` | AND (separated by spaces; full-width spaces work too) |
 | `a\|b` | OR. **Binds tighter than AND** (`#solo #3D\|#2D` means `#solo AND (#3D OR #2D)`) |

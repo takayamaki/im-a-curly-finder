@@ -7,7 +7,7 @@ use std::sync::{Arc, RwLock};
 
 use crate::normalize::normalize;
 use crate::query::{ParseError, Query, Subject};
-use crate::tags::{Issue, path_tags, segment_issues};
+use crate::tags::{Issue, path_tags, segment_issues, strip_tags};
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Entry {
@@ -22,7 +22,7 @@ pub struct Entry {
     /// The extension without the `.`. Empty if there is none
     pub ext: String,
     pub tags: Vec<String>,
-    /// `rel`, normalized for matching
+    /// `rel` with the tags removed, normalized for matching
     #[serde(skip)]
     text_key: String,
     /// `tags`, normalized for matching
@@ -46,7 +46,7 @@ impl Entry {
             name: name.to_string(),
             stem: stem.to_string(),
             ext: ext.to_string(),
-            text_key: normalize(&rel),
+            text_key: normalize(&strip_tags(&rel)),
             tag_keys: tags.iter().map(|t| normalize(t)).collect(),
             tags,
             rel,
@@ -296,8 +296,13 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn a_word_does_not_match_inside_a_tag() {}
+        fn a_word_does_not_match_inside_a_tag() {
+            let index = index_of(&["live{solo}/opening{solo}.mp4", "solo/opening.mp4"]);
+            let found = index.query("solo").unwrap();
+            assert_eq!(rels(&found), ["solo/opening.mp4"]);
+            let found = index.query("#solo").unwrap();
+            assert_eq!(rels(&found), ["live{solo}/opening{solo}.mp4"]);
+        }
     }
 
     mod tags {
