@@ -84,8 +84,17 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn opening_another_folder_replaces_the_index() {}
+        fn opening_another_folder_replaces_the_index() {
+            let a = tempfile::tempdir().unwrap();
+            let b = tempfile::tempdir().unwrap();
+            touch(a.path(), "a.mp4");
+            touch(b.path(), "b.mp4");
+            let session = Session::new();
+            session.open(a.path()).unwrap();
+            session.open(b.path()).unwrap();
+            assert_eq!(rels(&session.search("", 100).unwrap()), ["b.mp4"]);
+            assert_eq!(session.root().as_deref(), Some(b.path()));
+        }
 
         #[test]
         #[ignore = "todo"]
