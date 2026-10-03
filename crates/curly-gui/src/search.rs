@@ -13,11 +13,10 @@ pub struct Found {
 }
 
 pub fn search(index: &Index, expr: &str, limit: usize) -> Result<Found, String> {
-    let _ = limit;
     let matches = index.query(expr).unwrap();
     Ok(Found {
         total: matches.len(),
-        entries: matches.into_iter().cloned().collect(),
+        entries: matches.into_iter().take(limit).cloned().collect(),
     })
 }
 
@@ -64,8 +63,12 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn returns_at_most_limit_entries_with_the_total_count() {}
+        fn returns_at_most_limit_entries_with_the_total_count() {
+            let index = index_of(&["a.mp4", "b.mp4", "c.mp4"]);
+            let found = search(&index, "", 2).unwrap();
+            assert_eq!(rels(&found), ["a.mp4", "b.mp4"]);
+            assert_eq!(found.total, 3);
+        }
 
         #[test]
         #[ignore = "todo"]
