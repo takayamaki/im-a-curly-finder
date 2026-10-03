@@ -34,7 +34,11 @@ async fn rescan(app: State<'_, App>) -> Result<(), String> {
 }
 
 fn main() {
-    let app = match root::resolve(std::env::args_os().nth(1), std::env::var_os("CURLY_ROOT")) {
+    let app = match root::resolve(
+        std::env::args_os().nth(1),
+        std::env::var_os("CURLY_ROOT"),
+        None,
+    ) {
         None => Err("No folder to search. Pass it as the first argument or set CURLY_ROOT.".into()),
         Some(dir) => Index::scan(&dir)
             .map(|index| Arc::new(SharedIndex::new(index)))
