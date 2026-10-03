@@ -35,6 +35,13 @@ impl Session {
             .map(|shared| shared.snapshot().root.clone())
     }
 
+    /// Scans the open folder again. Searches keep working while it runs.
+    pub fn rescan(&self) -> Result<(), String> {
+        let shared = self.current.read().unwrap().clone();
+        let shared = shared.unwrap();
+        shared.rescan().map_err(|e| e.to_string())
+    }
+
     /// Searches the open folder. See [`crate::search::search`].
     pub fn search(&self, expr: &str, limit: usize) -> Result<Found, String> {
         let current = self.current.read().unwrap();
@@ -97,8 +104,15 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn rescan_picks_up_new_files() {}
+        fn rescan_picks_up_new_files() {
+            let dir = tempfile::tempdir().unwrap();
+            touch(dir.path(), "a.mp4");
+            let session = Session::new();
+            session.open(dir.path()).unwrap();
+            touch(dir.path(), "b.mp4");
+            session.rescan().unwrap();
+            assert_eq!(rels(&session.search("", 100).unwrap()), ["a.mp4", "b.mp4"]);
+        }
 
         #[test]
         #[ignore = "todo"]
