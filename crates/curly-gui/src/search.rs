@@ -56,8 +56,12 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn returns_every_entry_for_an_empty_query() {}
+        fn returns_every_entry_for_an_empty_query() {
+            let index = index_of(&["b.mp4", "a/c.mp4"]);
+            let found = search(&index, "", 100).unwrap();
+            assert_eq!(rels(&found), ["a/c.mp4", "b.mp4"]);
+            assert_eq!(found.total, 2);
+        }
 
         #[test]
         #[ignore = "todo"]
