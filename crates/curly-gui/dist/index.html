@@ -13,6 +13,12 @@
   #folder { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #status { white-space: nowrap; }
   #status.error { color: #f77; }
+  #chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 8px 6px; max-height: 84px; overflow-y: auto; }
+  #chips:empty { display: none; }
+  .chip { font-size: 12px; padding: 2px 8px; border-radius: 10px; border: 1px solid #5a3a4c; background: #2a2025; color: #e6a; }
+  .chip .count { color: #a78; margin-left: 4px; }
+  .chip.on { background: #e6a; color: #1e1e1e; border-color: #e6a; }
+  .chip.on .count { color: #4a2a3a; }
   ul { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
   li { padding: 4px 8px; border-bottom: 1px solid #2c2c2c; cursor: grab; user-select: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   li:hover { background: #333; }
@@ -27,6 +33,7 @@
   <button id="rescan" title="Scan the folder again">Rescan</button>
 </header>
 <div id="bar"><span id="folder"></span><span id="status"></span></div>
+<div id="chips"></div>
 <ul id="list"></ul>
 <script>
 const { invoke, Channel } = window.__TAURI__.core;
@@ -34,6 +41,52 @@ const q = document.getElementById("q");
 const list = document.getElementById("list");
 const status = document.getElementById("status");
 const folder = document.getElementById("folder");
+const chips = document.getElementById("chips");
+
+// The same normalization as the engine: NFKC, hiragana to katakana, lower case.
+function normalize(text) {
+  return text.normalize("NFKC")
+    .replace(/[\u3041-\u3096]/g, c => String.fromCharCode(c.charCodeAt(0) + 0x60))
+    .toLowerCase();
+}
+
+// How a tag is written in a query. Tags with spaces or symbols need quotes.
+function tagTerm(tag) {
+  return /[\s|()"]/.test(tag) ? `#"${tag}"` : "#" + tag;
+}
+
+// The terms of the query, split on spaces outside quotes.
+function terms(query) {
+  return query.match(/(?:[^\s"]+|"[^"]*"?)+/g) ?? [];
+}
+
+function hasTag(query, tag) {
+  const term = normalize(tagTerm(tag));
+  return terms(query).some(t => normalize(t) === term);
+}
+
+function toggleTag(tag) {
+  if (hasTag(q.value, tag)) {
+    const term = normalize(tagTerm(tag));
+    q.value = terms(q.value).filter(t => normalize(t) !== term).join(" ");
+  } else {
+    q.value = (q.value.trim() + " " + tagTerm(tag)).trim();
+  }
+  q.focus();
+  search();
+}
+
+function chip(tag) {
+  const b = document.createElement("button");
+  b.className = hasTag(q.value, tag.tag) ? "chip on" : "chip";
+  b.textContent = "#" + tag.tag;
+  const count = document.createElement("span");
+  count.className = "count";
+  count.textContent = tag.count;
+  b.append(count);
+  b.addEventListener("click", () => toggleTag(tag.tag));
+  return b;
+}
 // The app icon, shown under the cursor while dragging.
 const DRAG_ICON = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAgElEQVR4nO3WwRGAMAhE0ZRqSZZoJ3p2TAiQwK4zHLjuf6dou46zIQ8a/zXgFi4UIIVdkIiwCRIdnyIy4iIiKz5EZMa7CEpAZPyDoANkxF+IAhSgAHTvAAUA/i2gAMD/ByIQ3cYMsAsx3NcAVhHithbggag2rQANxLTlBWw7OOABUrJvV5TdnlsAAAAASUVORK5CYII=";
 
@@ -71,8 +124,10 @@ async function search() {
     const shown = found.entries.length;
     setStatus(shown < found.total ? `${found.total} files (showing ${shown})` : `${found.total} files`);
     list.replaceChildren(...found.entries.map(row));
+    chips.replaceChildren(...found.tags.map(chip));
   } catch (e) {
-    if (ticket === latest) setStatus(String(e), true);
+    if (ticket !== latest) return;
+    setStatus(String(e), true);
   }
 }
 
