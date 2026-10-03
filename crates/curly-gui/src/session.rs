@@ -127,7 +127,15 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn opening_a_missing_folder_is_an_error_and_keeps_the_open_one() {}
+        fn opening_a_missing_folder_is_an_error_and_keeps_the_open_one() {
+            let dir = tempfile::tempdir().unwrap();
+            touch(dir.path(), "a.mp4");
+            let session = Session::new();
+            session.open(dir.path()).unwrap();
+            let missing = dir.path().join("missing");
+            assert!(session.open(&missing).is_err());
+            assert_eq!(session.root().as_deref(), Some(dir.path()));
+            assert_eq!(rels(&session.search("", 100).unwrap()), ["a.mp4"]);
+        }
     }
 }
