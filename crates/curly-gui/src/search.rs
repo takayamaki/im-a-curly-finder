@@ -94,8 +94,12 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn counts_the_tags_of_matches_beyond_the_limit() {}
+        fn counts_the_tags_of_matches_beyond_the_limit() {
+            let index = index_of(&["a{3D}.mp4", "b{3D}.mp4", "c{2D}.mp4"]);
+            let found = search(&index, "", 1).unwrap();
+            assert_eq!(rels(&found), ["a{3D}.mp4"]);
+            assert_eq!(tag_counts(&found), [("3D", 2), ("2D", 1)]);
+        }
 
         #[test]
         fn returns_the_error_message_for_a_broken_query() {
