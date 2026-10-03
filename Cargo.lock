@@ -150,6 +150,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "curly-gui"
+version = "0.1.0"
+dependencies = [
+ "curly-finder",
+]
+
+[[package]]
 name = "difflib"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

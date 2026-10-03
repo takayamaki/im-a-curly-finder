@@ -1,0 +1,9 @@
+[package]
+name = "curly-gui"
+version = "0.1.0"
+edition = "2024"
+description = "I'm a Curly Finder: a GUI to find clips and drag them into other apps"
+license = "MIT"
+
+[dependencies]
+curly-finder = { path = "../curly-finder" }
