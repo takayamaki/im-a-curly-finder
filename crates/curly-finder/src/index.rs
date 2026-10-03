@@ -58,6 +58,8 @@ impl Entry {
 pub struct Index {
     pub root: PathBuf,
     pub entries: Vec<Entry>,
+    /// Folders that could not be read while scanning, relative to the root (`/`-separated)
+    pub skipped: Vec<String>,
 }
 
 /// One row of [`Index::tags`].
@@ -93,6 +95,7 @@ impl Index {
         Index {
             root: root.to_path_buf(),
             entries,
+            skipped: Vec::new(),
         }
     }
 
@@ -136,25 +139,41 @@ impl Index {
     pub fn scan(root: impl AsRef<Path>) -> io::Result<Index> {
         let root = root.as_ref();
         let mut rels = Vec::new();
+        let mut skipped = Vec::new();
         let walk = walkdir::WalkDir::new(root)
             .min_depth(1)
             .into_iter()
             .filter_entry(|item| !is_system_folder(item));
         for item in walk {
-            let item = item?;
+            let item = match item {
+                Ok(item) => item,
+                // Only the root itself has to be readable.
+                Err(e) if e.depth() > 0 => {
+                    if let Some(path) = e.path() {
+                        skipped.push(rel_of(root, path));
+                    }
+                    continue;
+                }
+                Err(e) => return Err(e.into()),
+            };
             if !item.file_type().is_file() {
                 continue;
             }
-            let rel = item.path().strip_prefix(root).unwrap_or(item.path());
-            let rel = rel
-                .components()
-                .map(|c| c.as_os_str().to_string_lossy())
-                .collect::<Vec<_>>()
-                .join("/");
-            rels.push(rel);
+            rels.push(rel_of(root, item.path()));
         }
-        Ok(Index::from_rels(root, rels))
+        let mut index = Index::from_rels(root, rels);
+        index.skipped = skipped;
+        Ok(index)
     }
+}
+
+/// `path` relative to `root`, `/`-separated.
+fn rel_of(root: &Path, path: &Path) -> String {
+    let rel = path.strip_prefix(root).unwrap_or(path);
+    rel.components()
+        .map(|c| c.as_os_str().to_string_lossy())
+        .collect::<Vec<_>>()
+        .join("/")
 }
 
 /// Folders that Windows keeps at the root of a drive. Never searched.
@@ -293,8 +312,22 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn skips_folders_that_cannot_be_read_and_lists_them() {}
+        #[cfg(unix)]
+        fn skips_folders_that_cannot_be_read_and_lists_them() {
+            use std::os::unix::fs::PermissionsExt;
+
+            let dir = tempfile::tempdir().unwrap();
+            touch(dir.path(), "clip.mp4");
+            touch(dir.path(), "locked/secret.mp4");
+            let locked = dir.path().join("locked");
+            std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o000)).unwrap();
+            let index = Index::scan(dir.path());
+            std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o755)).unwrap();
+            let index = index.unwrap();
+            let rels: Vec<&str> = index.entries.iter().map(|e| e.rel.as_str()).collect();
+            assert_eq!(rels, ["clip.mp4"]);
+            assert_eq!(index.skipped, ["locked"]);
+        }
 
         #[test]
         #[ignore = "todo"]
