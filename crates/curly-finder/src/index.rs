@@ -136,7 +136,11 @@ impl Index {
     pub fn scan(root: impl AsRef<Path>) -> io::Result<Index> {
         let root = root.as_ref();
         let mut rels = Vec::new();
-        for item in walkdir::WalkDir::new(root).min_depth(1) {
+        let walk = walkdir::WalkDir::new(root)
+            .min_depth(1)
+            .into_iter()
+            .filter_entry(|item| !is_system_folder(item));
+        for item in walk {
             let item = item?;
             if !item.file_type().is_file() {
                 continue;
@@ -151,6 +155,16 @@ impl Index {
         }
         Ok(Index::from_rels(root, rels))
     }
+}
+
+/// Folders that Windows keeps at the root of a drive. Never searched.
+const SYSTEM_FOLDERS: [&str; 2] = ["$RECYCLE.BIN", "System Volume Information"];
+
+fn is_system_folder(item: &walkdir::DirEntry) -> bool {
+    item.file_type().is_dir()
+        && SYSTEM_FOLDERS
+            .iter()
+            .any(|name| item.file_name().eq_ignore_ascii_case(name))
 }
 
 /// Counts the tags of `entries`, most used first.
@@ -267,8 +281,16 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn skips_the_recycle_bin_and_system_volume_information() {}
+        fn skips_the_recycle_bin_and_system_volume_information() {
+            let dir = tempfile::tempdir().unwrap();
+            touch(dir.path(), "clip.mp4");
+            touch(dir.path(), "$RECYCLE.BIN/S-1-5-21/$R1.mp4");
+            touch(dir.path(), "System Volume Information/tracking.log");
+            touch(dir.path(), "game-a/$Recycle.Bin/clip.mp4");
+            let index = Index::scan(dir.path()).unwrap();
+            let rels: Vec<&str> = index.entries.iter().map(|e| e.rel.as_str()).collect();
+            assert_eq!(rels, ["clip.mp4"]);
+        }
 
         #[test]
         #[ignore = "todo"]
