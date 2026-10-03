@@ -42,6 +42,15 @@ impl Session {
         shared.rescan().map_err(|e| e.to_string())
     }
 
+    /// Folders under the open folder that could not be read.
+    pub fn skipped(&self) -> Vec<String> {
+        let current = self.current.read().unwrap();
+        current
+            .as_ref()
+            .map(|shared| shared.snapshot().skipped.clone())
+            .unwrap_or_default()
+    }
+
     /// Searches the open folder. See [`crate::search::search`].
     pub fn search(&self, expr: &str, limit: usize) -> Result<Found, String> {
         let current = self.current.read().unwrap();
@@ -115,8 +124,20 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn tells_which_folders_could_not_be_read() {}
+        #[cfg(unix)]
+        fn tells_which_folders_could_not_be_read() {
+            use std::os::unix::fs::PermissionsExt;
+
+            let dir = tempfile::tempdir().unwrap();
+            touch(dir.path(), "locked/a.mp4");
+            let locked = dir.path().join("locked");
+            std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o000)).unwrap();
+            let session = Session::new();
+            let opened = session.open(dir.path());
+            std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o755)).unwrap();
+            opened.unwrap();
+            assert_eq!(session.skipped(), ["locked"]);
+        }
 
         #[test]
         fn search_before_opening_a_folder_is_an_error() {
