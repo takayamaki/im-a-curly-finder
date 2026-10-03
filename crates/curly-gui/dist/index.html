@@ -12,6 +12,8 @@
   #bar { display: flex; gap: 12px; padding: 4px 8px; font-size: 12px; color: #999; }
   #folder { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #status { white-space: nowrap; }
+  #skipped { white-space: nowrap; color: #db8; }
+  #skipped:empty { display: none; }
   #status.error { color: #f77; }
   #chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 8px 6px; max-height: 84px; overflow-y: auto; }
   #chips:empty { display: none; }
@@ -32,7 +34,7 @@
   <input id="q" placeholder="words, #tags, | for OR, - for NOT" autofocus spellcheck="false">
   <button id="rescan" title="Scan the folder again">Rescan</button>
 </header>
-<div id="bar"><span id="folder"></span><span id="status"></span></div>
+<div id="bar"><span id="folder"></span><span id="skipped"></span><span id="status"></span></div>
 <div id="chips"></div>
 <ul id="list"></ul>
 <script>
@@ -41,6 +43,7 @@ const q = document.getElementById("q");
 const list = document.getElementById("list");
 const status = document.getElementById("status");
 const folder = document.getElementById("folder");
+const skipped = document.getElementById("skipped");
 const chips = document.getElementById("chips");
 
 // The same normalization as the engine: NFKC, hiragana to katakana, lower case.
@@ -135,6 +138,9 @@ async function showFolder() {
   const current = await invoke("current_folder");
   folder.textContent = current.root ?? "No folder";
   folder.title = current.root ?? "";
+  const n = current.skipped.length;
+  skipped.textContent = n === 0 ? "" : n === 1 ? "1 folder could not be read" : `${n} folders could not be read`;
+  skipped.title = current.skipped.join("\n");
   return current;
 }
 
@@ -157,6 +163,7 @@ document.getElementById("rescan").addEventListener("click", async () => {
   setStatus("Scanning...");
   try {
     await invoke("rescan");
+    await showFolder();
     await search();
   } catch (e) {
     setStatus(String(e), true);

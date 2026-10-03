@@ -25,6 +25,13 @@ This file is the source of truth for the technical spec (tag rules, query syntax
   - An empty `{}`
 - The same tag on both a folder and a file is counted once.
 
+## Scanning
+
+- Every file under the root is indexed. Folders themselves are not.
+- `$RECYCLE.BIN` and `System Volume Information` (any case, at any depth) are never scanned.
+- Folders under the root that cannot be read are skipped and listed in `Index::skipped`.
+  Only a root that cannot be read is an error.
+
 ## Normalization
 
 Before matching, paths, tags and query words are all normalized like this:

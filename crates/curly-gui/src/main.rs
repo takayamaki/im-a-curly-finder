@@ -21,6 +21,8 @@ struct StartupError(Mutex<Option<String>>);
 struct CurrentFolder {
     root: Option<PathBuf>,
     error: Option<String>,
+    /// Folders under the root that could not be read
+    skipped: Vec<String>,
 }
 
 fn settings_file(app: &AppHandle) -> Result<PathBuf, String> {
@@ -33,6 +35,7 @@ fn current_folder(session: State<Arc<Session>>, startup: State<StartupError>) ->
     CurrentFolder {
         root: session.root(),
         error: startup.0.lock().unwrap().clone(),
+        skipped: session.skipped(),
     }
 }
 
