@@ -14,7 +14,9 @@ pub struct Settings {
 impl Settings {
     /// Reads the settings from `path`.
     pub fn load(path: &Path) -> Settings {
-        let text = std::fs::read_to_string(path).unwrap();
+        let Ok(text) = std::fs::read_to_string(path) else {
+            return Settings::default();
+        };
         serde_json::from_str(&text).unwrap()
     }
 
@@ -44,8 +46,11 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn loads_no_root_when_the_file_does_not_exist() {}
+        fn loads_no_root_when_the_file_does_not_exist() {
+            let dir = tempfile::tempdir().unwrap();
+            let file = dir.path().join("settings.json");
+            assert_eq!(Settings::load(&file), Settings::default());
+        }
 
         #[test]
         #[ignore = "todo"]
