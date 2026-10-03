@@ -115,6 +115,10 @@ mod tests {
         }
 
         #[test]
+        #[ignore = "todo"]
+        fn tells_which_folders_could_not_be_read() {}
+
+        #[test]
         fn search_before_opening_a_folder_is_an_error() {
             let session = Session::new();
             assert_eq!(session.search("", 100).unwrap_err(), NO_FOLDER);

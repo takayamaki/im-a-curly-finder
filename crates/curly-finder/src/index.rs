@@ -265,6 +265,18 @@ mod tests {
             assert_eq!(entry.ext, "mp4");
             assert_eq!(entry.tags, ["3D", "solo"]);
         }
+
+        #[test]
+        #[ignore = "todo"]
+        fn skips_the_recycle_bin_and_system_volume_information() {}
+
+        #[test]
+        #[ignore = "todo"]
+        fn skips_folders_that_cannot_be_read_and_lists_them() {}
+
+        #[test]
+        #[ignore = "todo"]
+        fn fails_when_the_root_cannot_be_read() {}
     }
 
     fn index_of(rels: &[&str]) -> crate::index::Index {
