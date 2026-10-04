@@ -101,5 +101,19 @@ fn a_broken_query_exits_with_an_error() {
 }
 
 #[test]
-#[ignore = "todo"]
-fn folders_that_cannot_be_read_are_reported_on_stderr() {}
+#[cfg(unix)]
+fn folders_that_cannot_be_read_are_reported_on_stderr() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let dir = tempfile::tempdir().unwrap();
+    touch(dir.path(), "clip.mp4");
+    touch(dir.path(), "locked/secret.mp4");
+    let locked = dir.path().join("locked");
+    fs::set_permissions(&locked, fs::Permissions::from_mode(0o000)).unwrap();
+    let assert = curly(dir.path()).args(["query", ""]).assert();
+    fs::set_permissions(&locked, fs::Permissions::from_mode(0o755)).unwrap();
+    assert
+        .success()
+        .stdout(format!("{}\n", dir.path().join("clip.mp4").display()))
+        .stderr("curly: could not read: locked\n");
+}

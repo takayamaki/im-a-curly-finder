@@ -88,3 +88,4 @@ curly --root <DIR> lint [--json]
 - `query` prints one absolute path per line. With `--json`, it prints an array of `Entry`.
 - `tags` prints `count<TAB>tag[<TAB>(spelling ×count, ...)]`. `lint` prints `relative path<TAB>issue, ...`.
 - A broken query prints `curly: query: <message>` to stderr and exits with code 1.
+- Each folder that could not be read is reported as `curly: could not read: <relative path>` on stderr. The command still succeeds.

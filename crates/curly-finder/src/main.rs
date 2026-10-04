@@ -40,6 +40,9 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
+    for rel in &index.skipped {
+        eprintln!("curly: could not read: {rel}");
+    }
     match cli.command {
         Command::Query { expr } => {
             let found = match index.query(&expr) {
