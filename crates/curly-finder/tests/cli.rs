@@ -99,3 +99,7 @@ fn a_broken_query_exits_with_an_error() {
         .stdout("")
         .stderr("curly: query: unbalanced ( and )\n");
 }
+
+#[test]
+#[ignore = "todo"]
+fn folders_that_cannot_be_read_are_reported_on_stderr() {}
