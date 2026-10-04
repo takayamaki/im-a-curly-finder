@@ -22,10 +22,15 @@
   .chip.on { background: #e6a; color: #1e1e1e; border-color: #e6a; }
   .chip.on .count { color: #4a2a3a; }
   ul { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
-  li { padding: 4px 8px; border-bottom: 1px solid #2c2c2c; cursor: grab; user-select: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  li { display: flex; gap: 8px; align-items: baseline; padding: 4px 8px; border-bottom: 1px solid #2c2c2c; cursor: grab; user-select: none; white-space: nowrap; }
   li:hover { background: #333; }
-  .dir { color: #888; }
-  .tag { color: #e6a; margin-left: 6px; }
+  li > span { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  /* When the window is narrow, the folder shrinks first, then the tags, then the name. */
+  .name { flex: 0 1 auto; }
+  .tags { flex: 0 2 auto; color: #e6a; }
+  /* rtl puts the ellipsis on the left, so the folder nearest to the file stays visible.
+     The <bdi> inside keeps the path itself left to right. */
+  .dir { flex: 1 1 0; color: #888; font-size: 12px; direction: rtl; text-align: right; }
 </style>
 </head>
 <body>
@@ -98,21 +103,22 @@ function setStatus(text, isError = false) {
   status.className = isError ? "error" : "";
 }
 
+function span(className, text) {
+  const el = document.createElement("span");
+  el.className = className;
+  el.textContent = text;
+  return el;
+}
+
 function row(entry) {
   const li = document.createElement("li");
-  if (entry.dir) {
-    const dir = document.createElement("span");
-    dir.className = "dir";
-    dir.textContent = entry.dir + "/";
-    li.append(dir);
-  }
-  li.append(entry.name);
-  for (const tag of entry.tags) {
-    const t = document.createElement("span");
-    t.className = "tag";
-    t.textContent = "#" + tag;
-    li.append(t);
-  }
+  li.append(span("name", entry.name));
+  if (entry.tags.length) li.append(span("tags", entry.tags.map(t => "#" + t).join(" ")));
+  const dir = span("dir", "");
+  const bdi = document.createElement("bdi");
+  bdi.textContent = entry.dir;
+  dir.append(bdi);
+  li.append(dir);
   li.dataset.path = entry.path;
   li.title = entry.path;
   return li;
