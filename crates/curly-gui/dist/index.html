@@ -15,7 +15,7 @@
   #skipped { white-space: nowrap; color: #db8; }
   #skipped:empty { display: none; }
   #status.error { color: #f77; }
-  #chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 8px 6px; max-height: 84px; overflow-y: auto; }
+  #chips { flex: none; display: flex; flex-wrap: wrap; gap: 4px; padding: 0 8px 6px; max-height: 84px; overflow-y: auto; }
   #chips:empty { display: none; }
   .chip { font-size: 12px; padding: 2px 8px; border-radius: 10px; border: 1px solid #5a3a4c; background: #2a2025; color: #e6a; }
   .chip .count { color: #a78; margin-left: 4px; }
@@ -63,30 +63,37 @@ function tagTerm(tag) {
   return /[\s|()"]/.test(tag) ? `#"${tag}"` : "#" + tag;
 }
 
-// The terms of the query, split on spaces outside quotes.
-function terms(query) {
-  return query.match(/(?:[^\s"]+|"[^"]*"?)+/g) ?? [];
-}
-
-function hasTag(query, tag) {
-  const term = normalize(tagTerm(tag));
-  return terms(query).some(t => normalize(t) === term);
-}
+// The tags chosen by clicking a chip, by normalized tag. They stay out of the input
+// and are joined to the query only when searching.
+const selected = new Map();
 
 function toggleTag(tag) {
-  if (hasTag(q.value, tag)) {
-    const term = normalize(tagTerm(tag));
-    q.value = terms(q.value).filter(t => normalize(t) !== term).join(" ");
-  } else {
-    q.value = (q.value.trim() + " " + tagTerm(tag)).trim();
-  }
+  const key = normalize(tag);
+  if (selected.has(key)) selected.delete(key);
+  else selected.set(key, tag);
   q.focus();
   search();
 }
 
+// The input, with the chosen tags joined by AND. The input goes in parentheses
+// so that a trailing | or - in it cannot reach the tags.
+function expression() {
+  const tags = [...selected.values()].map(tagTerm);
+  const typed = q.value.trim();
+  if (typed) tags.push(`(${typed})`);
+  return tags.join(" ");
+}
+
+// The chosen tags first, so they can be turned off even when nothing matches.
+function chipTags(tags) {
+  const counts = new Map(tags.map(t => [normalize(t.tag), t]));
+  const chosen = [...selected].map(([key, tag]) => counts.get(key) ?? { tag, count: 0 });
+  return chosen.concat(tags.filter(t => !selected.has(normalize(t.tag))));
+}
+
 function chip(tag) {
   const b = document.createElement("button");
-  b.className = hasTag(q.value, tag.tag) ? "chip on" : "chip";
+  b.className = selected.has(normalize(tag.tag)) ? "chip on" : "chip";
   b.textContent = "#" + tag.tag;
   const count = document.createElement("span");
   count.className = "count";
@@ -128,15 +135,16 @@ let latest = 0;
 async function search() {
   const ticket = ++latest;
   try {
-    const found = await invoke("query", { expr: q.value });
+    const found = await invoke("query", { expr: expression() });
     if (ticket !== latest) return;
     const shown = found.entries.length;
     setStatus(shown < found.total ? `${found.total} files (showing ${shown})` : `${found.total} files`);
     list.replaceChildren(...found.entries.map(row));
-    chips.replaceChildren(...found.tags.map(chip));
+    chips.replaceChildren(...chipTags(found.tags).map(chip));
   } catch (e) {
     if (ticket !== latest) return;
     setStatus(String(e), true);
+    chips.replaceChildren(...chipTags([]).map(chip));
   }
 }
 
@@ -199,7 +207,7 @@ showFolder().then(async current => {
   await search();
   if (current.error) setStatus(current.error, true);
 });
-q.addEventListener("keydown", e => { if (e.key === "Escape") { q.value = ""; search(); } });
+q.addEventListener("keydown", e => { if (e.key === "Escape") { q.value = ""; selected.clear(); search(); } });
 </script>
 </body>
 </html>
