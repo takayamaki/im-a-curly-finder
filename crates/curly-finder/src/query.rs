@@ -185,6 +185,15 @@ impl Query {
     pub fn matches(&self, subject: &Subject) -> bool {
         self.expr.matches(subject)
     }
+
+    /// This query AND every one of `tags`, as if each were written `#tag`.
+    pub fn and_tags<'a>(self, tags: impl IntoIterator<Item = &'a str>) -> Query {
+        let mut exprs: Vec<Expr> = tags.into_iter().map(|t| Expr::Tag(normalize(t))).collect();
+        exprs.push(self.expr);
+        Query {
+            expr: Expr::And(exprs),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -194,9 +203,13 @@ mod tests {
     use crate::tags::path_tags;
 
     fn hits(query: &str, rel: &str) -> bool {
+        query_hits(&Query::parse(query).unwrap(), rel)
+    }
+
+    fn query_hits(query: &Query, rel: &str) -> bool {
         let text = normalize(rel);
         let tags: Vec<String> = path_tags(rel).iter().map(|t| normalize(t)).collect();
-        Query::parse(query).unwrap().matches(&Subject {
+        query.matches(&Subject {
             text: &text,
             tags: &tags,
         })
@@ -284,9 +297,21 @@ mod tests {
     }
 
     mod and_tags {
+        use super::query_hits;
+        use crate::query::Query;
+
+        fn hits_with(query: &str, tags: &[&str], rel: &str) -> bool {
+            query_hits(
+                &Query::parse(query).unwrap().and_tags(tags.iter().copied()),
+                rel,
+            )
+        }
+
         #[test]
-        #[ignore = "todo"]
-        fn the_tags_narrow_down_the_query() {}
+        fn the_tags_narrow_down_the_query() {
+            assert!(hits_with("song", &["solo"], "MV/song{solo}.mp4"));
+            assert!(!hits_with("song", &["solo"], "MV/song.mp4"));
+        }
 
         #[test]
         #[ignore = "todo"]
