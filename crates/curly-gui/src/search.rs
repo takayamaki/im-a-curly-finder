@@ -1,6 +1,7 @@
 //! Searching the index for the result list.
 
-use curly_finder::index::{Entry, Index, TagCount, count_tags};
+use curly_finder::index::{Entry, Index, count_tags};
+use curly_finder::normalize::normalize;
 use curly_finder::query::Query;
 use serde::Serialize;
 
@@ -11,17 +12,37 @@ pub struct Found {
     pub entries: Vec<Entry>,
     /// Number of all matches
     pub total: usize,
-    /// The tags of all matches, most used first
-    pub tags: Vec<TagCount>,
+    /// The tags of all matches, the chosen ones first, then the most used first
+    pub tags: Vec<Chip>,
+}
+
+/// A tag shown as a chip above the result list.
+#[derive(Debug, Serialize)]
+pub struct Chip {
+    pub tag: String,
+    /// Number of matches with this tag
+    pub count: usize,
+    /// Whether the tag is one of the chosen tags
+    pub chosen: bool,
 }
 
 /// Searches for `expr` AND every one of the `chosen` tags (the chips clicked on).
 pub fn search(index: &Index, expr: &str, chosen: &[&str], limit: usize) -> Result<Found, String> {
     let query = Query::parse(expr).map_err(|e| e.to_string())?;
     let matches = index.matching(&query.and_tags(chosen.iter().copied()));
+    let chosen: Vec<String> = chosen.iter().map(|t| normalize(t)).collect();
+    let mut tags: Vec<Chip> = count_tags(matches.iter().copied())
+        .into_iter()
+        .map(|t| Chip {
+            chosen: chosen.contains(&normalize(&t.tag)),
+            tag: t.tag,
+            count: t.count,
+        })
+        .collect();
+    tags.sort_by_key(|t| !t.chosen);
     Ok(Found {
         total: matches.len(),
-        tags: count_tags(matches.iter().copied()),
+        tags,
         entries: matches.into_iter().take(limit).cloned().collect(),
     })
 }
@@ -46,8 +67,16 @@ mod tests {
             .collect()
     }
 
+    fn chips(found: &super::Found) -> Vec<(&str, usize, bool)> {
+        found
+            .tags
+            .iter()
+            .map(|t| (t.tag.as_str(), t.count, t.chosen))
+            .collect()
+    }
+
     mod search {
-        use super::{index_of, rels, tag_counts};
+        use super::{chips, index_of, rels, tag_counts};
         use crate::search::search;
 
         #[test]
@@ -117,8 +146,18 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn lists_the_chosen_tags_first_and_marks_them() {}
+        fn lists_the_chosen_tags_first_and_marks_them() {
+            let index = index_of(&[
+                "a{3D}{solo}.mp4",
+                "b{3D}{solo}{live}.mp4",
+                "c{3D}{live}.mp4",
+            ]);
+            let found = search(&index, "", &["live"], 100).unwrap();
+            assert_eq!(
+                chips(&found),
+                [("live", 2, true), ("3D", 2, false), ("solo", 1, false)]
+            );
+        }
 
         #[test]
         #[ignore = "todo"]
