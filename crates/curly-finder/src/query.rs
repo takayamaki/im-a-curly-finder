@@ -314,20 +314,31 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn every_tag_must_match() {}
+        fn every_tag_must_match() {
+            assert!(hits_with("", &["3D", "solo"], "MV{3D}/song{solo}.mp4"));
+            assert!(!hits_with("", &["3D", "solo"], "MV{3D}/song.mp4"));
+        }
 
         #[test]
-        #[ignore = "todo"]
-        fn the_tags_alone_narrow_down_an_empty_query() {}
+        fn the_tags_alone_narrow_down_an_empty_query() {
+            assert!(hits_with("", &["solo"], "song{solo}.mp4"));
+            assert!(!hits_with("", &["solo"], "song.mp4"));
+        }
 
         #[test]
-        #[ignore = "todo"]
-        fn a_tag_is_compared_after_normalization() {}
+        fn a_tag_is_compared_after_normalization() {
+            assert!(hits_with("", &["がぎぐ"], "{ガギグ}/song.mp4"));
+            assert!(hits_with("", &["ＭＶ"], "{mv}/song.mp4"));
+        }
 
         #[test]
-        #[ignore = "todo"]
-        fn a_bar_or_a_minus_in_the_query_does_not_reach_the_tags() {}
+        fn a_bar_or_a_minus_in_the_query_does_not_reach_the_tags() {
+            // (#2D | song) AND #solo, not #2D | (song AND #solo)
+            assert!(!hits_with("#2D|song", &["solo"], "MV{2D}/a.mp4"));
+            // (-song) AND #solo, not -(song AND #solo)
+            assert!(!hits_with("-song", &["solo"], "a.mp4"));
+            assert!(hits_with("-song", &["solo"], "a{solo}.mp4"));
+        }
     }
 
     mod parse_errors {
