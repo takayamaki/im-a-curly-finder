@@ -186,8 +186,12 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn keeps_the_spelling_of_a_chosen_tag() {}
+        fn keeps_the_spelling_of_a_chosen_tag() {
+            // The GUI turns a chip off by the spelling it chose, even if the files mostly spell it otherwise.
+            let index = index_of(&["a{3D}.mp4", "b{3D}.mp4", "c{3d}.mp4"]);
+            let found = search(&index, "", &["3d"], 100).unwrap();
+            assert_eq!(chips(&found), [("3d", 3, true)]);
+        }
 
         #[test]
         fn returns_the_error_message_for_a_broken_query() {
