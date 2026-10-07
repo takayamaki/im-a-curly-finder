@@ -283,6 +283,28 @@ mod tests {
         }
     }
 
+    mod and_tags {
+        #[test]
+        #[ignore = "todo"]
+        fn the_tags_narrow_down_the_query() {}
+
+        #[test]
+        #[ignore = "todo"]
+        fn every_tag_must_match() {}
+
+        #[test]
+        #[ignore = "todo"]
+        fn the_tags_alone_narrow_down_an_empty_query() {}
+
+        #[test]
+        #[ignore = "todo"]
+        fn a_tag_is_compared_after_normalization() {}
+
+        #[test]
+        #[ignore = "todo"]
+        fn a_bar_or_a_minus_in_the_query_does_not_reach_the_tags() {}
+    }
+
     mod parse_errors {
         use crate::query::{ParseError, Query};
 

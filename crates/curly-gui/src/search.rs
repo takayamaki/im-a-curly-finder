@@ -102,6 +102,22 @@ mod tests {
         }
 
         #[test]
+        #[ignore = "todo"]
+        fn narrows_down_the_matches_by_the_chosen_tags() {}
+
+        #[test]
+        #[ignore = "todo"]
+        fn lists_the_chosen_tags_first_and_marks_them() {}
+
+        #[test]
+        #[ignore = "todo"]
+        fn keeps_a_chosen_tag_that_nothing_matches_with_a_count_of_zero() {}
+
+        #[test]
+        #[ignore = "todo"]
+        fn keeps_the_spelling_of_a_chosen_tag() {}
+
+        #[test]
         fn returns_the_error_message_for_a_broken_query() {
             let index = index_of(&["a.mp4"]);
             assert_eq!(search(&index, "(a", 100).unwrap_err(), "unbalanced ( and )");
