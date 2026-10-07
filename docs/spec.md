@@ -61,10 +61,13 @@ Before matching, paths, tags and query words are all normalized like this:
 
 ```rust
 use curly_finder::index::{Index, SharedIndex};
+use curly_finder::query::Query;
 
 let shared = SharedIndex::new(Index::scan(root)?);  // scan(root)
 let index = shared.snapshot();                       // Arc<Index>
 index.query("#solo #3D|#2D")?;                       // Vec<&Entry> (in path order)
+let query = Query::parse("opening")?.and_tags(["3D"]); // opening AND #3D, built on the parsed query
+index.matching(&query);                              // Vec<&Entry> (in path order)
 index.tags();                                        // Vec<TagCount> (most used first, with spelling variants)
 index.lint();                                        // Vec<LintItem> (in path order, each folder once)
 shared.rescan()?;                                    // rebuilds, then swaps in the new index

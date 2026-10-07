@@ -51,55 +51,27 @@ const folder = document.getElementById("folder");
 const skipped = document.getElementById("skipped");
 const chips = document.getElementById("chips");
 
-// The same normalization as the engine: NFKC, hiragana to katakana, lower case.
-function normalize(text) {
-  return text.normalize("NFKC")
-    .replace(/[\u3041-\u3096]/g, c => String.fromCharCode(c.charCodeAt(0) + 0x60))
-    .toLowerCase();
-}
-
-// How a tag is written in a query. Tags with spaces or symbols need quotes.
-function tagTerm(tag) {
-  return /[\s|()"]/.test(tag) ? `#"${tag}"` : "#" + tag;
-}
-
-// The tags chosen by clicking a chip, by normalized tag. They stay out of the input
-// and are joined to the query only when searching.
-const selected = new Map();
+// The tags chosen by clicking a chip. They stay out of the input;
+// the engine joins them to the query with AND.
+let chosen = [];
 
 function toggleTag(tag) {
-  const key = normalize(tag);
-  if (selected.has(key)) selected.delete(key);
-  else selected.set(key, tag);
+  chosen = tag.chosen ? chosen.filter(t => t !== tag.tag) : [...chosen, tag.tag];
   q.focus();
   search();
 }
 
-// The input, with the chosen tags joined by AND. The input goes in parentheses
-// so that a trailing | or - in it cannot reach the tags.
-function expression() {
-  const tags = [...selected.values()].map(tagTerm);
-  const typed = q.value.trim();
-  if (typed) tags.push(`(${typed})`);
-  return tags.join(" ");
-}
-
-// The chosen tags first, so they can be turned off even when nothing matches.
-function chipTags(tags) {
-  const counts = new Map(tags.map(t => [normalize(t.tag), t]));
-  const chosen = [...selected].map(([key, tag]) => counts.get(key) ?? { tag, count: 0 });
-  return chosen.concat(tags.filter(t => !selected.has(normalize(t.tag))));
-}
-
 function chip(tag) {
   const b = document.createElement("button");
-  b.className = selected.has(normalize(tag.tag)) ? "chip on" : "chip";
+  b.className = tag.chosen ? "chip on" : "chip";
   b.textContent = "#" + tag.tag;
-  const count = document.createElement("span");
-  count.className = "count";
-  count.textContent = tag.count;
-  b.append(count);
-  b.addEventListener("click", () => toggleTag(tag.tag));
+  if (tag.count !== undefined) {
+    const count = document.createElement("span");
+    count.className = "count";
+    count.textContent = tag.count;
+    b.append(count);
+  }
+  b.addEventListener("click", () => toggleTag(tag));
   return b;
 }
 // The app icon, shown under the cursor while dragging.
@@ -135,16 +107,17 @@ let latest = 0;
 async function search() {
   const ticket = ++latest;
   try {
-    const found = await invoke("query", { expr: expression(), chosen: [] });
+    const found = await invoke("query", { expr: q.value, chosen });
     if (ticket !== latest) return;
     const shown = found.entries.length;
     setStatus(shown < found.total ? `${found.total} files (showing ${shown})` : `${found.total} files`);
     list.replaceChildren(...found.entries.map(row));
-    chips.replaceChildren(...chipTags(found.tags).map(chip));
+    chips.replaceChildren(...found.tags.map(chip));
   } catch (e) {
     if (ticket !== latest) return;
     setStatus(String(e), true);
-    chips.replaceChildren(...chipTags([]).map(chip));
+    // Keep the chosen tags on screen so they can still be turned off.
+    chips.replaceChildren(...chosen.map(tag => chip({ tag, chosen: true })));
   }
 }
 
@@ -207,7 +180,7 @@ showFolder().then(async current => {
   await search();
   if (current.error) setStatus(current.error, true);
 });
-q.addEventListener("keydown", e => { if (e.key === "Escape") { q.value = ""; selected.clear(); search(); } });
+q.addEventListener("keydown", e => { if (e.key === "Escape") { q.value = ""; chosen = []; search(); } });
 </script>
 </body>
 </html>
