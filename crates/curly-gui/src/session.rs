@@ -52,10 +52,10 @@ impl Session {
     }
 
     /// Searches the open folder. See [`crate::search::search`].
-    pub fn search(&self, expr: &str, limit: usize) -> Result<Found, String> {
+    pub fn search(&self, expr: &str, chosen: &[&str], limit: usize) -> Result<Found, String> {
         let current = self.current.read().unwrap();
         let shared = current.as_ref().ok_or(NO_FOLDER)?;
-        search(&shared.snapshot(), expr, limit)
+        search(&shared.snapshot(), expr, chosen, limit)
     }
 }
 
@@ -87,7 +87,7 @@ mod tests {
             touch(dir.path(), "game-a/MV{2D}/Blue Sky.mp4");
             let session = Session::new();
             session.open(dir.path()).unwrap();
-            let found = session.search("#3D", 100).unwrap();
+            let found = session.search("#3D", &[], 100).unwrap();
             assert_eq!(rels(&found), ["game-a/MV{3D}/opening.mp4"]);
         }
 
@@ -108,7 +108,7 @@ mod tests {
             let session = Session::new();
             session.open(a.path()).unwrap();
             session.open(b.path()).unwrap();
-            assert_eq!(rels(&session.search("", 100).unwrap()), ["b.mp4"]);
+            assert_eq!(rels(&session.search("", &[], 100).unwrap()), ["b.mp4"]);
             assert_eq!(session.root().as_deref(), Some(b.path()));
         }
 
@@ -120,7 +120,10 @@ mod tests {
             session.open(dir.path()).unwrap();
             touch(dir.path(), "b.mp4");
             session.rescan().unwrap();
-            assert_eq!(rels(&session.search("", 100).unwrap()), ["a.mp4", "b.mp4"]);
+            assert_eq!(
+                rels(&session.search("", &[], 100).unwrap()),
+                ["a.mp4", "b.mp4"]
+            );
         }
 
         #[test]
@@ -142,7 +145,7 @@ mod tests {
         #[test]
         fn search_before_opening_a_folder_is_an_error() {
             let session = Session::new();
-            assert_eq!(session.search("", 100).unwrap_err(), NO_FOLDER);
+            assert_eq!(session.search("", &[], 100).unwrap_err(), NO_FOLDER);
         }
 
         #[test]
@@ -160,7 +163,7 @@ mod tests {
             let missing = dir.path().join("missing");
             assert!(session.open(&missing).is_err());
             assert_eq!(session.root().as_deref(), Some(dir.path()));
-            assert_eq!(rels(&session.search("", 100).unwrap()), ["a.mp4"]);
+            assert_eq!(rels(&session.search("", &[], 100).unwrap()), ["a.mp4"]);
         }
     }
 }

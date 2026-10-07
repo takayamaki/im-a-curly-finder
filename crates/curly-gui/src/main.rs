@@ -40,8 +40,9 @@ fn current_folder(session: State<Arc<Session>>, startup: State<StartupError>) ->
 }
 
 #[tauri::command]
-fn query(session: State<Arc<Session>>, expr: String) -> Result<Found, String> {
-    session.search(&expr, LIMIT)
+fn query(session: State<Arc<Session>>, expr: String, chosen: Vec<String>) -> Result<Found, String> {
+    let chosen: Vec<&str> = chosen.iter().map(String::as_str).collect();
+    session.search(&expr, &chosen, LIMIT)
 }
 
 #[tauri::command]

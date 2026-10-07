@@ -135,7 +135,7 @@ let latest = 0;
 async function search() {
   const ticket = ++latest;
   try {
-    const found = await invoke("query", { expr: expression() });
+    const found = await invoke("query", { expr: expression(), chosen: [] });
     if (ticket !== latest) return;
     const shown = found.entries.length;
     setStatus(shown < found.total ? `${found.total} files (showing ${shown})` : `${found.total} files`);

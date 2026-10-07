@@ -122,9 +122,12 @@ impl Index {
     }
 
     pub fn query(&self, input: &str) -> Result<Vec<&Entry>, ParseError> {
-        let query = Query::parse(input)?;
-        Ok(self
-            .entries
+        Ok(self.matching(&Query::parse(input)?))
+    }
+
+    /// The entries that match `query`, in path order.
+    pub fn matching(&self, query: &Query) -> Vec<&Entry> {
+        self.entries
             .iter()
             .filter(|e| {
                 query.matches(&Subject {
@@ -132,7 +135,7 @@ impl Index {
                     tags: &e.tag_keys,
                 })
             })
-            .collect())
+            .collect()
     }
 
     /// Scans the files under `root` recursively. Directories themselves are not indexed.
