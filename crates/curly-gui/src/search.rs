@@ -30,16 +30,34 @@ pub struct Chip {
 pub fn search(index: &Index, expr: &str, chosen: &[&str], limit: usize) -> Result<Found, String> {
     let query = Query::parse(expr).map_err(|e| e.to_string())?;
     let matches = index.matching(&query.and_tags(chosen.iter().copied()));
-    let chosen: Vec<String> = chosen.iter().map(|t| normalize(t)).collect();
-    let mut tags: Vec<Chip> = count_tags(matches.iter().copied())
-        .into_iter()
-        .map(|t| Chip {
-            chosen: chosen.contains(&normalize(&t.tag)),
-            tag: t.tag,
-            count: t.count,
+    let counts = count_tags(matches.iter().copied());
+    let count_of = |key: &str| {
+        counts
+            .iter()
+            .find(|t| normalize(&t.tag) == key)
+            .map_or(0, |t| t.count)
+    };
+    let keys: Vec<String> = chosen.iter().map(|t| normalize(t)).collect();
+    // The chosen tags stay even when nothing matches, so they can be turned off.
+    let mut tags: Vec<Chip> = chosen
+        .iter()
+        .zip(&keys)
+        .map(|(tag, key)| Chip {
+            tag: tag.to_string(),
+            count: count_of(key),
+            chosen: true,
         })
         .collect();
-    tags.sort_by_key(|t| !t.chosen);
+    tags.extend(
+        counts
+            .iter()
+            .filter(|t| !keys.contains(&normalize(&t.tag)))
+            .map(|t| Chip {
+                tag: t.tag.clone(),
+                count: t.count,
+                chosen: false,
+            }),
+    );
     Ok(Found {
         total: matches.len(),
         tags,
@@ -160,8 +178,12 @@ mod tests {
         }
 
         #[test]
-        #[ignore = "todo"]
-        fn keeps_a_chosen_tag_that_nothing_matches_with_a_count_of_zero() {}
+        fn keeps_a_chosen_tag_that_nothing_matches_with_a_count_of_zero() {
+            let index = index_of(&["a{3D}.mp4", "b{2D}{solo}.mp4"]);
+            let found = search(&index, "", &["3D", "solo"], 100).unwrap();
+            assert_eq!(found.total, 0);
+            assert_eq!(chips(&found), [("3D", 0, true), ("solo", 0, true)]);
+        }
 
         #[test]
         #[ignore = "todo"]
