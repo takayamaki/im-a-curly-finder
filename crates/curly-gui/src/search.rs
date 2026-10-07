@@ -1,6 +1,8 @@
 //! Searching the index for the result list.
 
-use curly_finder::index::{Entry, Index, count_tags};
+use std::collections::HashMap;
+
+use curly_finder::index::{Entry, Index, TagCount, count_tags};
 use curly_finder::normalize::normalize;
 use curly_finder::query::Query;
 use serde::Serialize;
@@ -30,39 +32,41 @@ pub struct Chip {
 pub fn search(index: &Index, expr: &str, chosen: &[&str], limit: usize) -> Result<Found, String> {
     let query = Query::parse(expr).map_err(|e| e.to_string())?;
     let matches = index.matching(&query.and_tags(chosen.iter().copied()));
-    let counts = count_tags(matches.iter().copied());
-    let count_of = |key: &str| {
-        counts
-            .iter()
-            .find(|t| normalize(&t.tag) == key)
-            .map_or(0, |t| t.count)
-    };
+    Ok(Found {
+        total: matches.len(),
+        tags: chips(chosen, count_tags(matches.iter().copied())),
+        entries: matches.into_iter().take(limit).cloned().collect(),
+    })
+}
+
+/// The chosen tags in the order given, then the other tags of the matches.
+/// The chosen tags stay even when nothing matches, so they can be turned off.
+fn chips(chosen: &[&str], counts: Vec<TagCount>) -> Vec<Chip> {
     let keys: Vec<String> = chosen.iter().map(|t| normalize(t)).collect();
-    // The chosen tags stay even when nothing matches, so they can be turned off.
-    let mut tags: Vec<Chip> = chosen
+    let mut chosen_counts = HashMap::new();
+    let mut rest = Vec::new();
+    for t in counts {
+        let key = normalize(&t.tag);
+        if keys.contains(&key) {
+            chosen_counts.insert(key, t.count);
+        } else {
+            rest.push(Chip {
+                tag: t.tag,
+                count: t.count,
+                chosen: false,
+            });
+        }
+    }
+    chosen
         .iter()
         .zip(&keys)
         .map(|(tag, key)| Chip {
             tag: tag.to_string(),
-            count: count_of(key),
+            count: chosen_counts.get(key).copied().unwrap_or(0),
             chosen: true,
         })
-        .collect();
-    tags.extend(
-        counts
-            .iter()
-            .filter(|t| !keys.contains(&normalize(&t.tag)))
-            .map(|t| Chip {
-                tag: t.tag.clone(),
-                count: t.count,
-                chosen: false,
-            }),
-    );
-    Ok(Found {
-        total: matches.len(),
-        tags,
-        entries: matches.into_iter().take(limit).cloned().collect(),
-    })
+        .chain(rest)
+        .collect()
 }
 
 #[cfg(test)]
