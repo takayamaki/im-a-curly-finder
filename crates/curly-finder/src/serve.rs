@@ -217,8 +217,17 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn a_limit_of_zero_returns_no_entries_but_the_total() {}
+    fn a_limit_of_zero_returns_no_entries_but_the_total() {
+        let index = shared_of(&["songA.mp4", "songB.mp4"]);
+        let response = ask(
+            &index,
+            json!({"id": 11, "op": "query", "q": "", "limit": 0}),
+        );
+        assert_eq!(
+            response,
+            json!({"id": 11, "ok": true, "total": 2, "entries": []})
+        );
+    }
 
     #[test]
     #[ignore]
