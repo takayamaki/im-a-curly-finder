@@ -59,8 +59,13 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn query_echoes_the_id() {}
+    fn query_echoes_the_id() {
+        let index = shared_of(&["opening.mp4"]);
+        let response = ask(&index, json!({"id": 12, "op": "query", "q": ""}));
+        assert_eq!(response["id"], 12);
+        let response = ask(&index, json!({"id": "a-1", "op": "query", "q": ""}));
+        assert_eq!(response["id"], "a-1");
+    }
 
     #[test]
     #[ignore]
