@@ -7,8 +7,6 @@ use crate::index::SharedIndex;
 
 #[derive(Deserialize)]
 struct Request {
-    #[serde(default)]
-    id: Value,
     op: String,
     q: Option<String>,
     limit: Option<usize>,
@@ -16,12 +14,19 @@ struct Request {
 
 /// Answers one request line with one response line (without the newline).
 pub fn handle(index: &SharedIndex, line: &str) -> String {
-    let request: Request = serde_json::from_str(line).expect("a request");
-    let mut response = match answer(index, &request) {
+    let (id, result) = match serde_json::from_str::<Value>(line) {
+        Ok(value) => {
+            let request = Request::deserialize(&value).map_err(|e| format!("invalid request: {e}"));
+            let id = value.get("id").cloned().unwrap_or(Value::Null);
+            (id, request.and_then(|request| answer(index, &request)))
+        }
+        Err(e) => (Value::Null, Err(format!("invalid JSON: {e}"))),
+    };
+    let mut response = match result {
         Ok(body) => body,
         Err(error) => json!({"ok": false, "error": error}),
     };
-    response["id"] = request.id;
+    response["id"] = id;
     response.to_string()
 }
 
@@ -184,8 +189,32 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn invalid_json_answers_an_error_with_a_null_id() {}
+    fn invalid_json_answers_an_error_with_a_null_id() {
+        let index = shared_of(&["opening.mp4"]);
+        let response: Value = serde_json::from_str(&handle(&index, "{\"id\": 9, ")).unwrap();
+        assert_eq!(response["id"], Value::Null);
+        assert_eq!(response["ok"], false);
+        assert!(
+            response["error"]
+                .as_str()
+                .unwrap()
+                .starts_with("invalid JSON: ")
+        );
+    }
+
+    #[test]
+    fn a_request_without_op_answers_an_error_with_the_id() {
+        let index = shared_of(&["opening.mp4"]);
+        let response = ask(&index, json!({"id": 10, "q": ""}));
+        assert_eq!(response["id"], 10);
+        assert_eq!(response["ok"], false);
+        assert!(
+            response["error"]
+                .as_str()
+                .unwrap()
+                .starts_with("invalid request: ")
+        );
+    }
 
     #[test]
     #[ignore]
