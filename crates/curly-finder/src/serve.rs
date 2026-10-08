@@ -34,7 +34,7 @@ fn answer(index: &SharedIndex, request: &Request) -> Result<Value, String> {
             index.rescan().expect("a rescan");
             json!({"ok": true, "total": index.snapshot().entries.len()})
         }
-        _ => {
+        "query" => {
             let index = index.snapshot();
             let q = request.q.as_deref().ok_or("query: missing q")?;
             let found = index.query(q).map_err(|e| e.to_string())?;
@@ -42,6 +42,7 @@ fn answer(index: &SharedIndex, request: &Request) -> Result<Value, String> {
             let entries = &found[..request.limit.unwrap_or(total).min(total)];
             json!({"ok": true, "total": total, "entries": entries})
         }
+        op => return Err(format!("unknown op: {op}")),
     })
 }
 
@@ -173,8 +174,14 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn an_unknown_op_answers_an_error_with_the_id() {}
+    fn an_unknown_op_answers_an_error_with_the_id() {
+        let index = shared_of(&["opening.mp4"]);
+        let response = ask(&index, json!({"id": 8, "op": "lint", "q": ""}));
+        assert_eq!(
+            response,
+            json!({"id": 8, "ok": false, "error": "unknown op: lint"})
+        );
+    }
 
     #[test]
     #[ignore]
