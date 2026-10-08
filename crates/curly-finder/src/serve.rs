@@ -36,7 +36,7 @@ fn answer(index: &SharedIndex, request: &Request) -> Result<Value, String> {
         "ping" => json!({"ok": true}),
         "tags" => json!({"ok": true, "tags": index.snapshot().tags()}),
         "rescan" => {
-            index.rescan().expect("a rescan");
+            index.rescan().map_err(|e| format!("rescan: {e}"))?;
             json!({"ok": true, "total": index.snapshot().entries.len()})
         }
         "query" => {
@@ -230,6 +230,19 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn a_rescan_that_fails_answers_an_error_and_keeps_the_old_index() {}
+    fn a_rescan_that_fails_answers_an_error_and_keeps_the_old_index() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("clips");
+        std::fs::create_dir(&root).unwrap();
+        std::fs::write(root.join("songA.mp4"), b"").unwrap();
+        let index = SharedIndex::new(Index::scan(&root).unwrap());
+        std::fs::remove_dir_all(&root).unwrap();
+
+        let response = ask(&index, json!({"id": 12, "op": "rescan"}));
+        assert_eq!(response["id"], 12);
+        assert_eq!(response["ok"], false);
+        assert!(response["error"].as_str().unwrap().starts_with("rescan: "));
+        let response = ask(&index, json!({"id": 13, "op": "query", "q": "song"}));
+        assert_eq!(rels(&response), ["songA.mp4"]);
+    }
 }
