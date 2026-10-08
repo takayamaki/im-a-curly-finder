@@ -18,6 +18,7 @@ struct Request {
 pub fn handle(index: &SharedIndex, line: &str) -> String {
     let request: Request = serde_json::from_str(line).expect("a request");
     match request.op.as_str() {
+        "ping" => json!({"id": request.id, "ok": true}).to_string(),
         "tags" => {
             json!({"id": request.id, "ok": true, "tags": index.snapshot().tags()}).to_string()
         }
@@ -139,8 +140,11 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn ping_answers_ok() {}
+    fn ping_answers_ok() {
+        let index = shared_of(&["opening.mp4"]);
+        let response = ask(&index, json!({"id": 5, "op": "ping"}));
+        assert_eq!(response, json!({"id": 5, "ok": true}));
+    }
 
     #[test]
     #[ignore]
