@@ -29,6 +29,7 @@ This file is the source of truth for the technical spec (tag rules, query syntax
 
 - Every file under the root is indexed. Folders themselves are not.
 - `$RECYCLE.BIN` and `System Volume Information` (any case, at any depth) are never scanned.
+- Files whose names start with `._` (resource forks that macOS leaves behind) are not indexed.
 - Folders under the root that cannot be read are skipped and listed in `Index::skipped`.
   Only a root that cannot be read is an error.
 

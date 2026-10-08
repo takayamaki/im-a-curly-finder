@@ -159,7 +159,7 @@ impl Index {
                 }
                 Err(e) => return Err(e.into()),
             };
-            if !item.file_type().is_file() {
+            if !item.file_type().is_file() || is_resource_fork(&item) {
                 continue;
             }
             rels.push(rel_of(root, item.path()));
@@ -187,6 +187,11 @@ fn is_system_folder(item: &walkdir::DirEntry) -> bool {
         && SYSTEM_FOLDERS
             .iter()
             .any(|name| item.file_name().eq_ignore_ascii_case(name))
+}
+
+/// The `._*` files that macOS leaves on drives it writes to. Never indexed.
+fn is_resource_fork(item: &walkdir::DirEntry) -> bool {
+    item.file_name().as_encoded_bytes().starts_with(b"._")
 }
 
 /// Counts the tags of `entries`, most used first.
@@ -315,8 +320,16 @@ mod tests {
         }
 
         #[test]
-        #[ignore]
-        fn skips_macos_resource_fork_files() {}
+        fn skips_macos_resource_fork_files() {
+            let dir = tempfile::tempdir().unwrap();
+            touch(dir.path(), "clip.mp4");
+            touch(dir.path(), "._clip.mp4");
+            touch(dir.path(), "game-a/MV{3D}/._opening.mp4");
+            touch(dir.path(), "game-a/MV{3D}/opening._v2.mp4");
+            let index = Index::scan(dir.path()).unwrap();
+            let rels: Vec<&str> = index.entries.iter().map(|e| e.rel.as_str()).collect();
+            assert_eq!(rels, ["clip.mp4", "game-a/MV{3D}/opening._v2.mp4"]);
+        }
 
         #[test]
         #[cfg(unix)]
