@@ -17,26 +17,32 @@ struct Request {
 /// Answers one request line with one response line (without the newline).
 pub fn handle(index: &SharedIndex, line: &str) -> String {
     let request: Request = serde_json::from_str(line).expect("a request");
-    match request.op.as_str() {
-        "ping" => json!({"id": request.id, "ok": true}).to_string(),
-        "tags" => {
-            json!({"id": request.id, "ok": true, "tags": index.snapshot().tags()}).to_string()
-        }
+    let mut response = match answer(index, &request) {
+        Ok(body) => body,
+        Err(error) => json!({"ok": false, "error": error}),
+    };
+    response["id"] = request.id;
+    response.to_string()
+}
+
+/// The response to `request` without the `id`.
+fn answer(index: &SharedIndex, request: &Request) -> Result<Value, String> {
+    Ok(match request.op.as_str() {
+        "ping" => json!({"ok": true}),
+        "tags" => json!({"ok": true, "tags": index.snapshot().tags()}),
         "rescan" => {
             index.rescan().expect("a rescan");
-            let total = index.snapshot().entries.len();
-            json!({"id": request.id, "ok": true, "total": total}).to_string()
+            json!({"ok": true, "total": index.snapshot().entries.len()})
         }
         _ => {
             let index = index.snapshot();
-            let found = index
-                .query(request.q.as_deref().expect("q"))
-                .expect("a query");
+            let q = request.q.as_deref().expect("q");
+            let found = index.query(q).map_err(|e| e.to_string())?;
             let total = found.len();
             let entries = &found[..request.limit.unwrap_or(total).min(total)];
-            json!({"id": request.id, "ok": true, "total": total, "entries": entries}).to_string()
+            json!({"ok": true, "total": total, "entries": entries})
         }
-    }
+    })
 }
 
 #[cfg(test)]
@@ -147,8 +153,14 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn a_broken_query_answers_the_parse_error() {}
+    fn a_broken_query_answers_the_parse_error() {
+        let index = shared_of(&["opening.mp4"]);
+        let response = ask(&index, json!({"id": 6, "op": "query", "q": "(#3D"}));
+        assert_eq!(
+            response,
+            json!({"id": 6, "ok": false, "error": "unbalanced ( and )"})
+        );
+    }
 
     #[test]
     #[ignore]
