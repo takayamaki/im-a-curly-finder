@@ -36,7 +36,7 @@ fn answer(index: &SharedIndex, request: &Request) -> Result<Value, String> {
         }
         _ => {
             let index = index.snapshot();
-            let q = request.q.as_deref().expect("q");
+            let q = request.q.as_deref().ok_or("query: missing q")?;
             let found = index.query(q).map_err(|e| e.to_string())?;
             let total = found.len();
             let entries = &found[..request.limit.unwrap_or(total).min(total)];
@@ -163,8 +163,14 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn a_query_without_q_answers_an_error() {}
+    fn a_query_without_q_answers_an_error() {
+        let index = shared_of(&["opening.mp4"]);
+        let response = ask(&index, json!({"id": 7, "op": "query"}));
+        assert_eq!(
+            response,
+            json!({"id": 7, "ok": false, "error": "query: missing q"})
+        );
+    }
 
     #[test]
     #[ignore]
