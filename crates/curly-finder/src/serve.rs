@@ -10,6 +10,7 @@ struct Request {
     #[serde(default)]
     id: Value,
     q: String,
+    limit: Option<usize>,
 }
 
 /// Answers one request line with one response line (without the newline).
@@ -17,7 +18,9 @@ pub fn handle(index: &SharedIndex, line: &str) -> String {
     let request: Request = serde_json::from_str(line).expect("a request");
     let index = index.snapshot();
     let found = index.query(&request.q).expect("a query");
-    json!({"id": request.id, "ok": true, "total": found.len(), "entries": found}).to_string()
+    let total = found.len();
+    let entries = &found[..request.limit.unwrap_or(total).min(total)];
+    json!({"id": request.id, "ok": true, "total": total, "entries": entries}).to_string()
 }
 
 #[cfg(test)]
@@ -67,9 +70,25 @@ mod tests {
         assert_eq!(response["id"], "a-1");
     }
 
+    fn rels(response: &Value) -> Vec<&str> {
+        response["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|e| e["rel"].as_str().unwrap())
+            .collect()
+    }
+
     #[test]
-    #[ignore]
-    fn query_cuts_the_entries_at_the_limit_but_counts_them_all() {}
+    fn query_cuts_the_entries_at_the_limit_but_counts_them_all() {
+        let index = shared_of(&["songC.mp4", "songA.mp4", "songB.mp4"]);
+        let response = ask(
+            &index,
+            json!({"id": 1, "op": "query", "q": "song", "limit": 2}),
+        );
+        assert_eq!(response["total"], 3);
+        assert_eq!(rels(&response), ["songA.mp4", "songB.mp4"]);
+    }
 
     #[test]
     #[ignore]
