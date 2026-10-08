@@ -166,14 +166,63 @@ fn serve_answers_each_request_line_with_a_response_line() {
     assert!(child.wait().unwrap().success());
 }
 
-#[test]
-#[ignore]
-fn serve_keeps_serving_after_a_broken_request() {}
+/// Runs `curly serve` with `input` on stdin and returns the response lines.
+fn serve(root: &Path, input: &str) -> Vec<serde_json::Value> {
+    let output = curly(root)
+        .arg("serve")
+        .write_stdin(input)
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    String::from_utf8(output.stdout)
+        .unwrap()
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect()
+}
 
 #[test]
-#[ignore]
-fn serve_exits_successfully_when_stdin_is_closed() {}
+fn serve_keeps_serving_after_a_broken_request() {
+    let dir = tempfile::tempdir().unwrap();
+    touch(dir.path(), "song.mp4");
+
+    let responses = serve(
+        dir.path(),
+        "not json\n{\"id\": 2, \"op\": \"query\", \"q\": \"(\"}\n{\"id\": 3, \"op\": \"ping\"}\n",
+    );
+    assert_eq!(responses.len(), 3);
+    assert_eq!(responses[0]["id"], serde_json::Value::Null);
+    assert_eq!(responses[0]["ok"], false);
+    assert_eq!(
+        responses[1],
+        serde_json::json!({"id": 2, "ok": false, "error": "unbalanced ( and )"})
+    );
+    assert_eq!(responses[2], serde_json::json!({"id": 3, "ok": true}));
+}
 
 #[test]
-#[ignore]
-fn serve_does_not_list_macos_resource_fork_files() {}
+fn serve_exits_successfully_when_stdin_is_closed() {
+    let dir = tempfile::tempdir().unwrap();
+    touch(dir.path(), "song.mp4");
+
+    curly(dir.path())
+        .arg("serve")
+        .write_stdin("")
+        .assert()
+        .success()
+        .stdout("");
+}
+
+#[test]
+fn serve_does_not_list_macos_resource_fork_files() {
+    let dir = tempfile::tempdir().unwrap();
+    touch(dir.path(), "MV{3D}/song.mp4");
+    touch(dir.path(), "MV{3D}/._song.mp4");
+
+    let responses = serve(
+        dir.path(),
+        "{\"id\": 1, \"op\": \"query\", \"q\": \"song\"}\n",
+    );
+    assert_eq!(responses[0]["total"], 1);
+    assert_eq!(responses[0]["entries"][0]["rel"], "MV{3D}/song.mp4");
+}
