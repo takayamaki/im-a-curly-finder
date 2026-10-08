@@ -117,3 +117,19 @@ fn folders_that_cannot_be_read_are_reported_on_stderr() {
         .stdout(format!("{}\n", dir.path().join("clip.mp4").display()))
         .stderr("curly: could not read: locked\n");
 }
+
+#[test]
+#[ignore]
+fn serve_answers_each_request_line_with_a_response_line() {}
+
+#[test]
+#[ignore]
+fn serve_keeps_serving_after_a_broken_request() {}
+
+#[test]
+#[ignore]
+fn serve_exits_successfully_when_stdin_is_closed() {}
+
+#[test]
+#[ignore]
+fn serve_does_not_list_macos_resource_fork_files() {}

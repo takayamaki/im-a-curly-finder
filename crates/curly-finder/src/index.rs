@@ -315,6 +315,10 @@ mod tests {
         }
 
         #[test]
+        #[ignore]
+        fn skips_macos_resource_fork_files() {}
+
+        #[test]
         #[cfg(unix)]
         fn skips_folders_that_cannot_be_read_and_lists_them() {
             use std::os::unix::fs::PermissionsExt;
