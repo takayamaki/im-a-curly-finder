@@ -17,10 +17,17 @@ struct Request {
 /// Answers one request line with one response line (without the newline).
 pub fn handle(index: &SharedIndex, line: &str) -> String {
     let request: Request = serde_json::from_str(line).expect("a request");
-    let index = index.snapshot();
     match request.op.as_str() {
-        "tags" => json!({"id": request.id, "ok": true, "tags": index.tags()}).to_string(),
+        "tags" => {
+            json!({"id": request.id, "ok": true, "tags": index.snapshot().tags()}).to_string()
+        }
+        "rescan" => {
+            index.rescan().expect("a rescan");
+            let total = index.snapshot().entries.len();
+            json!({"id": request.id, "ok": true, "total": total}).to_string()
+        }
         _ => {
+            let index = index.snapshot();
             let found = index
                 .query(request.q.as_deref().expect("q"))
                 .expect("a query");
@@ -119,8 +126,17 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn rescan_picks_up_a_file_added_since_the_start() {}
+    fn rescan_picks_up_a_file_added_since_the_start() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("songA.mp4"), b"").unwrap();
+        let index = SharedIndex::new(Index::scan(dir.path()).unwrap());
+        std::fs::write(dir.path().join("songB.mp4"), b"").unwrap();
+
+        let response = ask(&index, json!({"id": 3, "op": "rescan"}));
+        assert_eq!(response, json!({"id": 3, "ok": true, "total": 2}));
+        let response = ask(&index, json!({"id": 4, "op": "query", "q": "song"}));
+        assert_eq!(rels(&response), ["songA.mp4", "songB.mp4"]);
+    }
 
     #[test]
     #[ignore]
