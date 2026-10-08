@@ -86,6 +86,7 @@ shared.rescan()?;                                    // rebuilds, then swaps in 
 curly --root <DIR> query <QUERY> [--json]
 curly --root <DIR> tags [--json]
 curly --root <DIR> lint [--json]
+curly --root <DIR> serve
 ```
 
 - `--root` can also be given with the `CURLY_ROOT` environment variable.
@@ -93,3 +94,37 @@ curly --root <DIR> lint [--json]
 - `tags` prints `count<TAB>tag[<TAB>(spelling ×count, ...)]`. `lint` prints `relative path<TAB>issue, ...`.
 - A broken query prints `curly: query: <message>` to stderr and exits with code 1.
 - Each folder that could not be read is reported as `curly: could not read: <relative path>` on stderr. The command still succeeds.
+
+## Serve mode
+
+`curly serve` scans the root once, then answers requests until stdin closes (exit code 0).
+Meant for an app that runs it as a child process, so it does not rescan for every query.
+Each request is one line of JSON on stdin. Each response is one line of JSON on stdout, flushed right away.
+Requests are answered one at a time, in order. `id` (any JSON value) is echoed back.
+
+```
+→ {"id": 12, "op": "query", "q": "opening #3D|#2D", "limit": 500}
+← {"id": 12, "ok": true, "total": 34, "entries": [<Entry>, ...]}
+→ {"id": 13, "op": "tags"}
+← {"id": 13, "ok": true, "tags": [<TagCount>, ...]}
+→ {"id": 14, "op": "rescan"}
+← {"id": 14, "ok": true, "total": 13733}
+→ {"id": 15, "op": "ping"}
+← {"id": 15, "ok": true}
+← {"id": 16, "ok": false, "error": "unbalanced ( and )"}
+```
+
+| op | Answer |
+|---|---|
+| `query` | `entries`: the matching `Entry`s in path order (the same objects as `query --json`), cut at `limit` (default: no limit). `total`: the number of matches before the cut |
+| `tags` | `tags`: the same objects as `tags --json` |
+| `rescan` | Scans the root again (`SharedIndex::rescan`). `total`: the number of entries in the new index |
+| `ping` | Nothing but `ok` |
+
+- On an error the answer is `{"id": ..., "ok": false, "error": "<message>"}`, and the server keeps serving:
+  - A broken query: the message of the query error (`unbalanced ( and )` etc.)
+  - `query` without `q`: `query: missing q`
+  - An unknown op: `unknown op: <op>`
+  - A line that is not JSON: `invalid JSON: ...` with `"id": null`. JSON that is not a request (e.g. no `op`): `invalid request: ...`, with the `id` if it has one
+  - A rescan that fails: `rescan: ...`. The old index stays in use
+- A scan error at startup and unreadable folders are reported on stderr, as with the other commands.

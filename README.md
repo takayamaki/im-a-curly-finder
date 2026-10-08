@@ -12,6 +12,7 @@ See [docs/spec.md](docs/spec.md) for the tag rules and the query syntax.
 curly --root 'D:\clips' query 'opening #solo #3D|#2D -#self-shot'
 curly --root 'D:\clips' tags
 curly --root 'D:\clips' lint
+curly --root 'D:\clips' serve   # one JSON request per line on stdin, for apps
 curly-gui.exe
 ```
 
