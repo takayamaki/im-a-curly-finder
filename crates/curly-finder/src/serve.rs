@@ -9,7 +9,8 @@ use crate::index::SharedIndex;
 struct Request {
     #[serde(default)]
     id: Value,
-    q: String,
+    op: String,
+    q: Option<String>,
     limit: Option<usize>,
 }
 
@@ -17,10 +18,17 @@ struct Request {
 pub fn handle(index: &SharedIndex, line: &str) -> String {
     let request: Request = serde_json::from_str(line).expect("a request");
     let index = index.snapshot();
-    let found = index.query(&request.q).expect("a query");
-    let total = found.len();
-    let entries = &found[..request.limit.unwrap_or(total).min(total)];
-    json!({"id": request.id, "ok": true, "total": total, "entries": entries}).to_string()
+    match request.op.as_str() {
+        "tags" => json!({"id": request.id, "ok": true, "tags": index.tags()}).to_string(),
+        _ => {
+            let found = index
+                .query(request.q.as_deref().expect("q"))
+                .expect("a query");
+            let total = found.len();
+            let entries = &found[..request.limit.unwrap_or(total).min(total)];
+            json!({"id": request.id, "ok": true, "total": total, "entries": entries}).to_string()
+        }
+    }
 }
 
 #[cfg(test)]
@@ -91,8 +99,24 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn tags_returns_the_tag_counts() {}
+    fn tags_returns_the_tag_counts() {
+        let index = shared_of(&["MV{3D}/songA{solo}.mp4", "MV{３Ｄ}/songB.mp4"]);
+        let response = ask(&index, json!({"id": 2, "op": "tags"}));
+        assert_eq!(
+            response,
+            json!({
+                "id": 2,
+                "ok": true,
+                "tags": [
+                    {"tag": "3D", "count": 2, "spellings": [
+                        {"text": "3D", "count": 1},
+                        {"text": "３Ｄ", "count": 1},
+                    ]},
+                    {"tag": "solo", "count": 1, "spellings": [{"text": "solo", "count": 1}]},
+                ],
+            })
+        );
+    }
 
     #[test]
     #[ignore]
