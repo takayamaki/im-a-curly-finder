@@ -360,8 +360,17 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn search_with_a_broken_q_answers_the_parse_error() {}
+    fn search_with_a_broken_q_answers_the_parse_error() {
+        let index = shared_of(&["opening{3D}.mp4"]);
+        let response = ask(
+            &index,
+            json!({"id": 6, "op": "search", "q": "(#solo", "chosen": ["3D"]}),
+        );
+        assert_eq!(
+            response,
+            json!({"id": 6, "ok": false, "error": "unbalanced ( and )"})
+        );
+    }
 
     #[test]
     #[ignore]
