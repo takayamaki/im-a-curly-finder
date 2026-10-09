@@ -226,3 +226,7 @@ fn serve_does_not_list_macos_resource_fork_files() {
     assert_eq!(responses[0]["total"], 1);
     assert_eq!(responses[0]["entries"][0]["rel"], "MV{3D}/song.mp4");
 }
+
+#[test]
+#[ignore]
+fn serve_answers_a_search_with_the_chosen_tags_as_chips() {}

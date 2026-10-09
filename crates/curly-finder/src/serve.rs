@@ -245,4 +245,32 @@ mod tests {
         let response = ask(&index, json!({"id": 13, "op": "query", "q": "song"}));
         assert_eq!(rels(&response), ["songA.mp4"]);
     }
+
+    #[test]
+    #[ignore]
+    fn search_narrows_down_the_matches_by_q_and_the_chosen_tags() {}
+
+    #[test]
+    #[ignore]
+    fn search_lists_the_chosen_tags_first_and_marks_them() {}
+
+    #[test]
+    #[ignore]
+    fn search_keeps_a_chosen_tag_that_nothing_matches_with_a_count_of_zero() {}
+
+    #[test]
+    #[ignore]
+    fn search_without_chosen_searches_by_q_alone() {}
+
+    #[test]
+    #[ignore]
+    fn search_cuts_the_entries_at_the_limit_but_not_the_tags_or_the_total() {}
+
+    #[test]
+    #[ignore]
+    fn search_with_a_broken_q_answers_the_parse_error() {}
+
+    #[test]
+    #[ignore]
+    fn search_returns_the_tags_of_the_matches_of_q() {}
 }
