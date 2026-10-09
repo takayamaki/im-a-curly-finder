@@ -4,12 +4,15 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::index::SharedIndex;
+use crate::search::search;
 
 #[derive(Deserialize)]
 struct Request {
     op: String,
     q: Option<String>,
     limit: Option<usize>,
+    #[serde(default)]
+    chosen: Vec<String>,
 }
 
 /// Answers one request line with one response line (without the newline).
@@ -46,6 +49,19 @@ fn answer(index: &SharedIndex, request: &Request) -> Result<Value, String> {
             let total = found.len();
             let entries = &found[..request.limit.unwrap_or(total).min(total)];
             json!({"ok": true, "total": total, "entries": entries})
+        }
+        "search" => {
+            let q = request.q.as_deref().ok_or("search: missing q")?;
+            let chosen: Vec<&str> = request.chosen.iter().map(String::as_str).collect();
+            let found = search(
+                &index.snapshot(),
+                q,
+                &chosen,
+                request.limit.unwrap_or(usize::MAX),
+            )?;
+            let mut body = serde_json::to_value(found).map_err(|e| e.to_string())?;
+            body["ok"] = json!(true);
+            body
         }
         op => return Err(format!("unknown op: {op}")),
     })
@@ -247,8 +263,21 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn search_narrows_down_the_matches_by_q_and_the_chosen_tags() {}
+    fn search_narrows_down_the_matches_by_q_and_the_chosen_tags() {
+        let index = shared_of(&[
+            "MV{3D}/opening{solo}.mp4",
+            "MV{3D}/ending.mp4",
+            "MV{2D}/opening{solo}.mp4",
+        ]);
+        let response = ask(
+            &index,
+            json!({"id": 1, "op": "search", "q": "opening", "chosen": ["3D"]}),
+        );
+        assert_eq!(response["ok"], true);
+        assert_eq!(response["id"], 1);
+        assert_eq!(response["total"], 1);
+        assert_eq!(rels(&response), ["MV{3D}/opening{solo}.mp4"]);
+    }
 
     #[test]
     #[ignore]
