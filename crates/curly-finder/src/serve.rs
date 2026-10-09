@@ -324,8 +324,22 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn search_without_chosen_searches_by_q_alone() {}
+    fn search_without_chosen_searches_by_q_alone() {
+        let index = shared_of(&["MV{3D}/opening.mp4", "MV{2D}/opening.mp4", "ending.mp4"]);
+        let response = ask(&index, json!({"id": 4, "op": "search", "q": "opening"}));
+        assert_eq!(response["total"], 2);
+        assert_eq!(
+            rels(&response),
+            ["MV{2D}/opening.mp4", "MV{3D}/opening.mp4"]
+        );
+        assert_eq!(
+            response["tags"],
+            json!([
+                {"tag": "2D", "count": 1, "chosen": false},
+                {"tag": "3D", "count": 1, "chosen": false},
+            ])
+        );
+    }
 
     #[test]
     #[ignore]
