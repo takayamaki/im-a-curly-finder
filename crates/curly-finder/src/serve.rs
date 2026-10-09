@@ -373,6 +373,23 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn search_returns_the_tags_of_the_matches_of_q() {}
+    fn search_returns_the_tags_of_the_matches_of_q() {
+        let index = shared_of(&[
+            "MV{3D}/opening{solo}.mp4",
+            "MV{3D}/ending{unit}.mp4",
+            "live{3D}/opening{live}.mp4",
+        ]);
+        let response = ask(
+            &index,
+            json!({"id": 7, "op": "search", "q": "opening", "chosen": ["3D"]}),
+        );
+        assert_eq!(
+            response["tags"],
+            json!([
+                {"tag": "3D", "count": 2, "chosen": true},
+                {"tag": "live", "count": 1, "chosen": false},
+                {"tag": "solo", "count": 1, "chosen": false},
+            ])
+        );
+    }
 }
