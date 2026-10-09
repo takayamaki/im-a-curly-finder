@@ -392,4 +392,14 @@ mod tests {
             ])
         );
     }
+
+    #[test]
+    fn search_without_q_answers_an_error() {
+        let index = shared_of(&["opening{3D}.mp4"]);
+        let response = ask(&index, json!({"id": 8, "op": "search", "chosen": ["3D"]}));
+        assert_eq!(
+            response,
+            json!({"id": 8, "ok": false, "error": "search: missing q"})
+        );
+    }
 }
