@@ -63,6 +63,7 @@ Before matching, paths, tags and query words are all normalized like this:
 ```rust
 use curly_finder::index::{Index, SharedIndex};
 use curly_finder::query::Query;
+use curly_finder::search::search;
 
 let shared = SharedIndex::new(Index::scan(root)?);  // scan(root)
 let index = shared.snapshot();                       // Arc<Index>
@@ -70,12 +71,14 @@ index.query("#solo #3D|#2D")?;                       // Vec<&Entry> (in path ord
 let query = Query::parse("opening")?.and_tags(["3D"]); // opening AND #3D, built on the parsed query
 index.matching(&query);                              // Vec<&Entry> (in path order)
 index.tags();                                        // Vec<TagCount> (most used first, with spelling variants)
+search(&index, "opening", &["3D"], 500)?;            // Found (curly_finder::search: the GUI's search, see below)
 index.lint();                                        // Vec<LintItem> (in path order, each folder once)
 shared.rescan()?;                                    // rebuilds, then swaps in the new index
 ```
 
 - `Entry`: `path` (absolute) / `rel` / `dir` / `name` / `stem` / `ext` / `tags`
 - `TagCount`: `tag` (the most common spelling) / `count` (number of files) / `spellings` (count per spelling that normalizes to the same tag)
+- `Found` (`search::search`): `total` / `entries` / `tags` (`Chip`s: `tag` / `count` / `chosen`). What `curly serve`'s `search` answers
 - `LintItem`: `rel` / `issues` (`full_width_brace` / `unclosed` / `stray_close` / `nested` / `empty`)
 - `SharedIndex::rescan` scans outside the lock. While it runs, you can keep searching the index you got from `snapshot()`.
   How to run it in the background is up to the GUI.
@@ -105,6 +108,8 @@ Requests are answered one at a time, in order. `id` (any JSON value) is echoed b
 ```
 → {"id": 12, "op": "query", "q": "opening #3D|#2D", "limit": 500}
 ← {"id": 12, "ok": true, "total": 34, "entries": [<Entry>, ...]}
+→ {"id": 17, "op": "search", "q": "opening", "chosen": ["3D", "デレ"], "limit": 500}
+← {"id": 17, "ok": true, "total": 34, "entries": [<Entry>, ...], "tags": [{"tag": "3D", "count": 34, "chosen": true}, {"tag": "デレ", "count": 34, "chosen": true}, {"tag": "ソロ", "count": 20, "chosen": false}, ...]}
 → {"id": 13, "op": "tags"}
 ← {"id": 13, "ok": true, "tags": [<TagCount>, ...]}
 → {"id": 14, "op": "rescan"}
@@ -117,13 +122,14 @@ Requests are answered one at a time, in order. `id` (any JSON value) is echoed b
 | op | Answer |
 |---|---|
 | `query` | `entries`: the matching `Entry`s in path order (the same objects as `query --json`), cut at `limit` (default: no limit). `total`: the number of matches before the cut |
+| `search` | The GUI's search (`search::search`): the tags chosen as chips are kept apart from the typed `q`. Matches: `q` AND every tag in `chosen` (default: none). `entries` and `total` as for `query`. `tags`: the chips — the chosen tags first, in the order given and with the spelling given, `chosen: true`, and `count` over the matches (0 and still listed when nothing matches, so they can be turned off); then the other tags of all the matches (not only the first `limit`), most used first, `chosen: false` |
 | `tags` | `tags`: the same objects as `tags --json` |
 | `rescan` | Scans the root again (`SharedIndex::rescan`). `total`: the number of entries in the new index |
 | `ping` | Nothing but `ok` |
 
 - On an error the answer is `{"id": ..., "ok": false, "error": "<message>"}`, and the server keeps serving:
   - A broken query: the message of the query error (`unbalanced ( and )` etc.)
-  - `query` without `q`: `query: missing q`
+  - `query` without `q`: `query: missing q` (`search` without `q`: `search: missing q`)
   - An unknown op: `unknown op: <op>`
   - A line that is not JSON: `invalid JSON: ...` with `"id": null`. JSON that is not a request (e.g. no `op`): `invalid request: ...`, with the `id` if it has one
   - A rescan that fails: `rescan: ...`. The old index stays in use
