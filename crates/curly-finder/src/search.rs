@@ -1,10 +1,11 @@
-//! Searching the index for the result list.
+//! Searching the index for the result list: the typed query AND the chosen tags (the chips clicked on).
+//! The GUI and `curly serve` both use it.
 
 use std::collections::HashMap;
 
-use curly_finder::index::{Entry, Index, TagCount, count_tags};
-use curly_finder::normalize::normalize;
-use curly_finder::query::Query;
+use crate::index::{Entry, Index, TagCount, count_tags};
+use crate::normalize::normalize;
+use crate::query::Query;
 use serde::Serialize;
 
 /// What the result list shows.
@@ -71,7 +72,7 @@ fn chips(chosen: &[&str], counts: Vec<TagCount>) -> Vec<Chip> {
 
 #[cfg(test)]
 mod tests {
-    use curly_finder::index::Index;
+    use crate::index::Index;
 
     fn index_of(rels: &[&str]) -> Index {
         Index::from_rels("/root", rels.iter().map(|r| r.to_string()))

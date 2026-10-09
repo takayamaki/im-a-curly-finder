@@ -3,8 +3,8 @@
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
+use curly_finder::search::Found;
 use curly_gui::root;
-use curly_gui::search::Found;
 use curly_gui::session::Session;
 use curly_gui::settings::Settings;
 use serde::Serialize;
