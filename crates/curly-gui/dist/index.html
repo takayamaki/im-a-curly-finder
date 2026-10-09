@@ -15,7 +15,7 @@
   #skipped { white-space: nowrap; color: #db8; }
   #skipped:empty { display: none; }
   #status.error { color: #f77; }
-  #chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 8px 6px; max-height: 84px; overflow-y: auto; }
+  #chips { flex: none; display: flex; flex-wrap: wrap; gap: 4px; padding: 0 8px 6px; max-height: 84px; overflow-y: auto; }
   #chips:empty { display: none; }
   .chip { font-size: 12px; padding: 2px 8px; border-radius: 10px; border: 1px solid #5a3a4c; background: #2a2025; color: #e6a; }
   .chip .count { color: #a78; margin-left: 4px; }
@@ -51,48 +51,27 @@ const folder = document.getElementById("folder");
 const skipped = document.getElementById("skipped");
 const chips = document.getElementById("chips");
 
-// The same normalization as the engine: NFKC, hiragana to katakana, lower case.
-function normalize(text) {
-  return text.normalize("NFKC")
-    .replace(/[\u3041-\u3096]/g, c => String.fromCharCode(c.charCodeAt(0) + 0x60))
-    .toLowerCase();
-}
-
-// How a tag is written in a query. Tags with spaces or symbols need quotes.
-function tagTerm(tag) {
-  return /[\s|()"]/.test(tag) ? `#"${tag}"` : "#" + tag;
-}
-
-// The terms of the query, split on spaces outside quotes.
-function terms(query) {
-  return query.match(/(?:[^\s"]+|"[^"]*"?)+/g) ?? [];
-}
-
-function hasTag(query, tag) {
-  const term = normalize(tagTerm(tag));
-  return terms(query).some(t => normalize(t) === term);
-}
+// The tags chosen by clicking a chip. They stay out of the input;
+// the engine joins them to the query with AND.
+let chosen = [];
 
 function toggleTag(tag) {
-  if (hasTag(q.value, tag)) {
-    const term = normalize(tagTerm(tag));
-    q.value = terms(q.value).filter(t => normalize(t) !== term).join(" ");
-  } else {
-    q.value = (q.value.trim() + " " + tagTerm(tag)).trim();
-  }
+  chosen = tag.chosen ? chosen.filter(t => t !== tag.tag) : [...chosen, tag.tag];
   q.focus();
   search();
 }
 
 function chip(tag) {
   const b = document.createElement("button");
-  b.className = hasTag(q.value, tag.tag) ? "chip on" : "chip";
+  b.className = tag.chosen ? "chip on" : "chip";
   b.textContent = "#" + tag.tag;
-  const count = document.createElement("span");
-  count.className = "count";
-  count.textContent = tag.count;
-  b.append(count);
-  b.addEventListener("click", () => toggleTag(tag.tag));
+  if (tag.count !== undefined) {
+    const count = document.createElement("span");
+    count.className = "count";
+    count.textContent = tag.count;
+    b.append(count);
+  }
+  b.addEventListener("click", () => toggleTag(tag));
   return b;
 }
 // The app icon, shown under the cursor while dragging.
@@ -128,7 +107,7 @@ let latest = 0;
 async function search() {
   const ticket = ++latest;
   try {
-    const found = await invoke("query", { expr: q.value });
+    const found = await invoke("query", { expr: q.value, chosen });
     if (ticket !== latest) return;
     const shown = found.entries.length;
     setStatus(shown < found.total ? `${found.total} files (showing ${shown})` : `${found.total} files`);
@@ -137,6 +116,8 @@ async function search() {
   } catch (e) {
     if (ticket !== latest) return;
     setStatus(String(e), true);
+    // Keep the chosen tags on screen so they can still be turned off.
+    chips.replaceChildren(...chosen.map(tag => chip({ tag, chosen: true })));
   }
 }
 
@@ -199,7 +180,7 @@ showFolder().then(async current => {
   await search();
   if (current.error) setStatus(current.error, true);
 });
-q.addEventListener("keydown", e => { if (e.key === "Escape") { q.value = ""; search(); } });
+q.addEventListener("keydown", e => { if (e.key === "Escape") { q.value = ""; chosen = []; search(); } });
 </script>
 </body>
 </html>

@@ -6,4 +6,5 @@
 pub mod index;
 pub mod normalize;
 pub mod query;
+pub mod serve;
 pub mod tags;

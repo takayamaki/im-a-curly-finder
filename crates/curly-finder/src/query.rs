@@ -185,6 +185,15 @@ impl Query {
     pub fn matches(&self, subject: &Subject) -> bool {
         self.expr.matches(subject)
     }
+
+    /// This query AND every one of `tags`, as if each were written `#tag`.
+    pub fn and_tags<'a>(self, tags: impl IntoIterator<Item = &'a str>) -> Query {
+        let mut exprs: Vec<Expr> = tags.into_iter().map(|t| Expr::Tag(normalize(t))).collect();
+        exprs.push(self.expr);
+        Query {
+            expr: Expr::And(exprs),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -194,9 +203,13 @@ mod tests {
     use crate::tags::path_tags;
 
     fn hits(query: &str, rel: &str) -> bool {
+        query_hits(&Query::parse(query).unwrap(), rel)
+    }
+
+    fn query_hits(query: &Query, rel: &str) -> bool {
         let text = normalize(rel);
         let tags: Vec<String> = path_tags(rel).iter().map(|t| normalize(t)).collect();
-        Query::parse(query).unwrap().matches(&Subject {
+        query.matches(&Subject {
             text: &text,
             tags: &tags,
         })
@@ -280,6 +293,51 @@ mod tests {
         fn an_empty_query_matches_everything() {
             assert!(hits("", "song.mp4"));
             assert!(hits("　 ", "song.mp4"));
+        }
+    }
+
+    mod and_tags {
+        use super::query_hits;
+        use crate::query::Query;
+
+        fn hits_with(query: &str, tags: &[&str], rel: &str) -> bool {
+            query_hits(
+                &Query::parse(query).unwrap().and_tags(tags.iter().copied()),
+                rel,
+            )
+        }
+
+        #[test]
+        fn the_tags_narrow_down_the_query() {
+            assert!(hits_with("song", &["solo"], "MV/song{solo}.mp4"));
+            assert!(!hits_with("song", &["solo"], "MV/song.mp4"));
+        }
+
+        #[test]
+        fn every_tag_must_match() {
+            assert!(hits_with("", &["3D", "solo"], "MV{3D}/song{solo}.mp4"));
+            assert!(!hits_with("", &["3D", "solo"], "MV{3D}/song.mp4"));
+        }
+
+        #[test]
+        fn the_tags_alone_narrow_down_an_empty_query() {
+            assert!(hits_with("", &["solo"], "song{solo}.mp4"));
+            assert!(!hits_with("", &["solo"], "song.mp4"));
+        }
+
+        #[test]
+        fn a_tag_is_compared_after_normalization() {
+            assert!(hits_with("", &["がぎぐ"], "{ガギグ}/song.mp4"));
+            assert!(hits_with("", &["ＭＶ"], "{mv}/song.mp4"));
+        }
+
+        #[test]
+        fn a_bar_or_a_minus_in_the_query_does_not_reach_the_tags() {
+            // (#2D | song) AND #solo, not #2D | (song AND #solo)
+            assert!(!hits_with("#2D|song", &["solo"], "MV{2D}/a.mp4"));
+            // (-song) AND #solo, not -(song AND #solo)
+            assert!(!hits_with("-song", &["solo"], "a.mp4"));
+            assert!(hits_with("-song", &["solo"], "a{solo}.mp4"));
         }
     }
 

@@ -2,7 +2,8 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
-use curly_finder::index::Index;
+use curly_finder::index::{Index, SharedIndex};
+use curly_finder::serve;
 
 /// Find files by the {tags} in their paths and names
 #[derive(Parser)]
@@ -29,6 +30,8 @@ enum Command {
     Tags,
     /// Print the folders and files whose braces have problems
     Lint,
+    /// Answer one JSON request per line on stdin with one JSON line on stdout, until stdin closes
+    Serve,
 }
 
 fn main() -> ExitCode {
@@ -79,6 +82,7 @@ fn main() -> ExitCode {
                 }
             }
         }
+        Command::Serve => return run_serve(index),
         Command::Lint => {
             let items = index.lint();
             if cli.json {
@@ -92,6 +96,33 @@ fn main() -> ExitCode {
         }
     }
     ExitCode::SUCCESS
+}
+
+fn run_serve(index: Index) -> ExitCode {
+    use std::io::{BufRead, Write};
+
+    let index = SharedIndex::new(index);
+    let mut stdin = std::io::stdin().lock();
+    let mut stdout = std::io::stdout().lock();
+    let mut line = Vec::new();
+    loop {
+        line.clear();
+        match stdin.read_until(b'\n', &mut line) {
+            Ok(0) => return ExitCode::SUCCESS,
+            Ok(_) => {}
+            Err(e) => {
+                eprintln!("curly: serve: {e}");
+                return ExitCode::FAILURE;
+            }
+        }
+        let response = serve::handle(&index, &String::from_utf8_lossy(&line));
+        if writeln!(stdout, "{response}")
+            .and_then(|()| stdout.flush())
+            .is_err()
+        {
+            return ExitCode::FAILURE;
+        }
+    }
 }
 
 fn print_json(value: &impl serde::Serialize) {
