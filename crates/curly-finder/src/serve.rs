@@ -280,8 +280,26 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn search_lists_the_chosen_tags_first_and_marks_them() {}
+    fn search_lists_the_chosen_tags_first_and_marks_them() {
+        let index = shared_of(&[
+            "a{3D}{solo}.mp4",
+            "b{3D}{solo}{live}.mp4",
+            "c{3D}{live}.mp4",
+            "d{2D}{live}.mp4",
+        ]);
+        let response = ask(
+            &index,
+            json!({"id": 2, "op": "search", "q": "", "chosen": ["live", "3D"]}),
+        );
+        assert_eq!(
+            response["tags"],
+            json!([
+                {"tag": "live", "count": 2, "chosen": true},
+                {"tag": "3D", "count": 2, "chosen": true},
+                {"tag": "solo", "count": 1, "chosen": false},
+            ])
+        );
+    }
 
     #[test]
     #[ignore]
