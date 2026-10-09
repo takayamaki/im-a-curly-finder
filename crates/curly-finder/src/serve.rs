@@ -302,8 +302,26 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn search_keeps_a_chosen_tag_that_nothing_matches_with_a_count_of_zero() {}
+    fn search_keeps_a_chosen_tag_that_nothing_matches_with_a_count_of_zero() {
+        let index = shared_of(&["a{3D}.mp4", "b{2D}{solo}.mp4"]);
+        let response = ask(
+            &index,
+            json!({"id": 3, "op": "search", "q": "", "chosen": ["3D", "solo"]}),
+        );
+        assert_eq!(
+            response,
+            json!({
+                "id": 3,
+                "ok": true,
+                "total": 0,
+                "entries": [],
+                "tags": [
+                    {"tag": "3D", "count": 0, "chosen": true},
+                    {"tag": "solo", "count": 0, "chosen": true},
+                ],
+            })
+        );
+    }
 
     #[test]
     #[ignore]
