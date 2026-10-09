@@ -342,8 +342,22 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn search_cuts_the_entries_at_the_limit_but_not_the_tags_or_the_total() {}
+    fn search_cuts_the_entries_at_the_limit_but_not_the_tags_or_the_total() {
+        let index = shared_of(&["a{3D}.mp4", "b{3D}.mp4", "c{2D}.mp4"]);
+        let response = ask(
+            &index,
+            json!({"id": 5, "op": "search", "q": "", "chosen": [], "limit": 1}),
+        );
+        assert_eq!(response["total"], 3);
+        assert_eq!(rels(&response), ["a{3D}.mp4"]);
+        assert_eq!(
+            response["tags"],
+            json!([
+                {"tag": "3D", "count": 2, "chosen": false},
+                {"tag": "2D", "count": 1, "chosen": false},
+            ])
+        );
+    }
 
     #[test]
     #[ignore]
