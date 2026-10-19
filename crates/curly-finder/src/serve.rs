@@ -4,12 +4,15 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::index::SharedIndex;
+use crate::search::search;
 
 #[derive(Deserialize)]
 struct Request {
     op: String,
     q: Option<String>,
     limit: Option<usize>,
+    #[serde(default)]
+    chosen: Vec<String>,
 }
 
 /// Answers one request line with one response line (without the newline).
@@ -46,6 +49,19 @@ fn answer(index: &SharedIndex, request: &Request) -> Result<Value, String> {
             let total = found.len();
             let entries = &found[..request.limit.unwrap_or(total).min(total)];
             json!({"ok": true, "total": total, "entries": entries})
+        }
+        "search" => {
+            let q = request.q.as_deref().ok_or("search: missing q")?;
+            let chosen: Vec<&str> = request.chosen.iter().map(String::as_str).collect();
+            let found = search(
+                &index.snapshot(),
+                q,
+                &chosen,
+                request.limit.unwrap_or(usize::MAX),
+            )?;
+            let mut body = serde_json::to_value(found).map_err(|e| e.to_string())?;
+            body["ok"] = json!(true);
+            body
         }
         op => return Err(format!("unknown op: {op}")),
     })
@@ -244,5 +260,146 @@ mod tests {
         assert!(response["error"].as_str().unwrap().starts_with("rescan: "));
         let response = ask(&index, json!({"id": 13, "op": "query", "q": "song"}));
         assert_eq!(rels(&response), ["songA.mp4"]);
+    }
+
+    #[test]
+    fn search_narrows_down_the_matches_by_q_and_the_chosen_tags() {
+        let index = shared_of(&[
+            "MV{3D}/opening{solo}.mp4",
+            "MV{3D}/ending.mp4",
+            "MV{2D}/opening{solo}.mp4",
+        ]);
+        let response = ask(
+            &index,
+            json!({"id": 1, "op": "search", "q": "opening", "chosen": ["3D"]}),
+        );
+        assert_eq!(response["ok"], true);
+        assert_eq!(response["id"], 1);
+        assert_eq!(response["total"], 1);
+        assert_eq!(rels(&response), ["MV{3D}/opening{solo}.mp4"]);
+    }
+
+    #[test]
+    fn search_lists_the_chosen_tags_first_and_marks_them() {
+        let index = shared_of(&[
+            "a{3D}{solo}.mp4",
+            "b{3D}{solo}{live}.mp4",
+            "c{3D}{live}.mp4",
+            "d{2D}{live}.mp4",
+        ]);
+        let response = ask(
+            &index,
+            json!({"id": 2, "op": "search", "q": "", "chosen": ["live", "3D"]}),
+        );
+        assert_eq!(
+            response["tags"],
+            json!([
+                {"tag": "live", "count": 2, "chosen": true},
+                {"tag": "3D", "count": 2, "chosen": true},
+                {"tag": "solo", "count": 1, "chosen": false},
+            ])
+        );
+    }
+
+    #[test]
+    fn search_keeps_a_chosen_tag_that_nothing_matches_with_a_count_of_zero() {
+        let index = shared_of(&["a{3D}.mp4", "b{2D}{solo}.mp4"]);
+        let response = ask(
+            &index,
+            json!({"id": 3, "op": "search", "q": "", "chosen": ["3D", "solo"]}),
+        );
+        assert_eq!(
+            response,
+            json!({
+                "id": 3,
+                "ok": true,
+                "total": 0,
+                "entries": [],
+                "tags": [
+                    {"tag": "3D", "count": 0, "chosen": true},
+                    {"tag": "solo", "count": 0, "chosen": true},
+                ],
+            })
+        );
+    }
+
+    #[test]
+    fn search_without_chosen_searches_by_q_alone() {
+        let index = shared_of(&["MV{3D}/opening.mp4", "MV{2D}/opening.mp4", "ending.mp4"]);
+        let response = ask(&index, json!({"id": 4, "op": "search", "q": "opening"}));
+        assert_eq!(response["total"], 2);
+        assert_eq!(
+            rels(&response),
+            ["MV{2D}/opening.mp4", "MV{3D}/opening.mp4"]
+        );
+        assert_eq!(
+            response["tags"],
+            json!([
+                {"tag": "2D", "count": 1, "chosen": false},
+                {"tag": "3D", "count": 1, "chosen": false},
+            ])
+        );
+    }
+
+    #[test]
+    fn search_cuts_the_entries_at_the_limit_but_not_the_tags_or_the_total() {
+        let index = shared_of(&["a{3D}.mp4", "b{3D}.mp4", "c{2D}.mp4"]);
+        let response = ask(
+            &index,
+            json!({"id": 5, "op": "search", "q": "", "chosen": [], "limit": 1}),
+        );
+        assert_eq!(response["total"], 3);
+        assert_eq!(rels(&response), ["a{3D}.mp4"]);
+        assert_eq!(
+            response["tags"],
+            json!([
+                {"tag": "3D", "count": 2, "chosen": false},
+                {"tag": "2D", "count": 1, "chosen": false},
+            ])
+        );
+    }
+
+    #[test]
+    fn search_with_a_broken_q_answers_the_parse_error() {
+        let index = shared_of(&["opening{3D}.mp4"]);
+        let response = ask(
+            &index,
+            json!({"id": 6, "op": "search", "q": "(#solo", "chosen": ["3D"]}),
+        );
+        assert_eq!(
+            response,
+            json!({"id": 6, "ok": false, "error": "unbalanced ( and )"})
+        );
+    }
+
+    #[test]
+    fn search_returns_the_tags_of_the_matches_of_q() {
+        let index = shared_of(&[
+            "MV{3D}/opening{solo}.mp4",
+            "MV{3D}/ending{unit}.mp4",
+            "live{3D}/opening{live}.mp4",
+        ]);
+        let response = ask(
+            &index,
+            json!({"id": 7, "op": "search", "q": "opening", "chosen": ["3D"]}),
+        );
+        assert_eq!(
+            response["tags"],
+            json!([
+                {"tag": "3D", "count": 2, "chosen": true},
+                {"tag": "live", "count": 1, "chosen": false},
+                {"tag": "solo", "count": 1, "chosen": false},
+            ])
+        );
+    }
+
+    #[test]
+    fn search_without_q_answers_an_error() {
+        let index = shared_of(&["opening{3D}.mp4"]);
+        let response = ask(&index, json!({"id": 8, "op": "search", "chosen": ["3D"]}));
+        assert_eq!(
+            response,
+            json!({"id": 8, "ok": false, "error": "search: missing q"})
+        );
     }
 }

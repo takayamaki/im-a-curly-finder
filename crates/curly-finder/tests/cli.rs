@@ -226,3 +226,37 @@ fn serve_does_not_list_macos_resource_fork_files() {
     assert_eq!(responses[0]["total"], 1);
     assert_eq!(responses[0]["entries"][0]["rel"], "MV{3D}/song.mp4");
 }
+
+#[test]
+fn serve_answers_a_search_with_the_chosen_tags_as_chips() {
+    let dir = tempfile::tempdir().unwrap();
+    touch(dir.path(), "MV{3D}/opening{solo}.mp4");
+    touch(dir.path(), "MV{3D}/ending.mp4");
+    touch(dir.path(), "MV{2D}/opening{solo}.mp4");
+
+    let responses = serve(
+        dir.path(),
+        "{\"id\": 1, \"op\": \"search\", \"q\": \"opening\", \"chosen\": [\"3D\"], \"limit\": 10}\n",
+    );
+    assert_eq!(
+        responses[0],
+        serde_json::json!({
+            "id": 1,
+            "ok": true,
+            "total": 1,
+            "entries": [{
+                "path": dir.path().join("MV{3D}/opening{solo}.mp4"),
+                "rel": "MV{3D}/opening{solo}.mp4",
+                "dir": "MV{3D}",
+                "name": "opening{solo}.mp4",
+                "stem": "opening{solo}",
+                "ext": "mp4",
+                "tags": ["3D", "solo"],
+            }],
+            "tags": [
+                {"tag": "3D", "count": 1, "chosen": true},
+                {"tag": "solo", "count": 1, "chosen": false},
+            ],
+        })
+    );
+}
