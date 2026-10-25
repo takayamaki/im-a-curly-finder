@@ -466,8 +466,14 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn search_with_sort_path_returns_the_entries_in_path_order() {}
+    fn search_with_sort_path_returns_the_entries_in_path_order() {
+        let index = shared_of(&["b/songA.mp4", "a/songB.mp4"]);
+        let response = ask(
+            &index,
+            json!({"id": 5, "op": "search", "q": "", "sort": "path"}),
+        );
+        assert_eq!(rels(&response), ["a/songB.mp4", "b/songA.mp4"]);
+    }
 
     #[test]
     #[ignore]
