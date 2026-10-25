@@ -52,7 +52,8 @@ pub fn search(
     let query = Query::parse(expr).map_err(|e| e.to_string())?;
     let mut matches = index.matching(&query.and_tags(chosen.iter().copied()));
     if !exts.is_empty() {
-        matches.retain(|e| exts.contains(&e.ext.as_str()));
+        let keys: Vec<String> = exts.iter().map(|x| normalize(x)).collect();
+        matches.retain(|e| keys.contains(&normalize(&e.ext)));
     }
     if order == Order::Name {
         matches.sort_by_cached_key(|e| normalize(&e.name));

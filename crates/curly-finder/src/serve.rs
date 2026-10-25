@@ -542,8 +542,15 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn search_with_exts_compares_the_extensions_as_matching_does() {}
+    fn search_with_exts_compares_the_extensions_as_matching_does() {
+        // Upper and lower case, full-width and half-width are the same.
+        let index = shared_of(&["a.MP4", "b.mp4", "c.ｍｐ４", "d.png"]);
+        let response = ask(
+            &index,
+            json!({"id": 5, "op": "search", "q": "", "exts": ["Mp4"]}),
+        );
+        assert_eq!(rels(&response), ["a.MP4", "b.mp4", "c.ｍｐ４"]);
+    }
 
     #[test]
     #[ignore]
