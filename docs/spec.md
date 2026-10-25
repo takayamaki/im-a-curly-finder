@@ -71,7 +71,7 @@ index.query("#solo #3D|#2D")?;                       // Vec<&Entry> (in path ord
 let query = Query::parse("opening")?.and_tags(["3D"]); // opening AND #3D, built on the parsed query
 index.matching(&query);                              // Vec<&Entry> (in path order)
 index.tags();                                        // Vec<TagCount> (most used first, with spelling variants)
-search(&index, "opening", &["3D"], 500, Order::Path)?; // Found (curly_finder::search: the GUI's search, see below)
+search(&index, "opening", &["3D"], &[], 500, Order::Path)?; // Found (curly_finder::search: the GUI's search, see below)
 index.lint();                                        // Vec<LintItem> (in path order, each folder once)
 shared.rescan()?;                                    // rebuilds, then swaps in the new index
 ```
@@ -79,6 +79,7 @@ shared.rescan()?;                                    // rebuilds, then swaps in 
 - `Entry`: `path` (absolute) / `rel` / `dir` / `name` / `stem` / `ext` / `tags`
 - `TagCount`: `tag` (the most common spelling) / `count` (number of files) / `spellings` (count per spelling that normalizes to the same tag)
 - `Found` (`search::search`): `total` / `entries` / `tags` (`Chip`s: `tag` / `count` / `chosen`). What `curly serve`'s `search` answers
+- `exts` (`search::search`): the extensions to narrow down to (`&[]`: any file), compared after normalizing
 - `Order` (`search::search`): `Path` (by `rel`) / `Name` (by `name`, normalized as for matching; the same names stay in path order). All the matches are sorted before the cut at `limit`
 - `LintItem`: `rel` / `issues` (`full_width_brace` / `unclosed` / `stray_close` / `nested` / `empty`)
 - `SharedIndex::rescan` scans outside the lock. While it runs, you can keep searching the index you got from `snapshot()`.
@@ -109,7 +110,7 @@ Requests are answered one at a time, in order. `id` (any JSON value) is echoed b
 ```
 → {"id": 12, "op": "query", "q": "opening #3D|#2D", "limit": 500}
 ← {"id": 12, "ok": true, "total": 34, "entries": [<Entry>, ...]}
-→ {"id": 17, "op": "search", "q": "opening", "chosen": ["3D", "デレ"], "sort": "name", "limit": 500}
+→ {"id": 17, "op": "search", "q": "opening", "chosen": ["3D", "デレ"], "exts": ["mp4", "mov"], "sort": "name", "limit": 500}
 ← {"id": 17, "ok": true, "total": 34, "entries": [<Entry>, ...], "tags": [{"tag": "3D", "count": 34, "chosen": true}, {"tag": "デレ", "count": 34, "chosen": true}, {"tag": "ソロ", "count": 20, "chosen": false}, ...]}
 → {"id": 13, "op": "tags"}
 ← {"id": 13, "ok": true, "tags": [<TagCount>, ...]}
@@ -123,7 +124,7 @@ Requests are answered one at a time, in order. `id` (any JSON value) is echoed b
 | op | Answer |
 |---|---|
 | `query` | `entries`: the matching `Entry`s in path order (the same objects as `query --json`), cut at `limit` (default: no limit). `total`: the number of matches before the cut |
-| `search` | The GUI's search (`search::search`): the tags chosen as chips are kept apart from the typed `q`. Matches: `q` AND every tag in `chosen` (default: none). `entries` and `total` as for `query`, except that `sort` sets the order of `entries`: `"path"` (default, path order) or `"name"` (file name order: by `name`, with upper and lower case, hiragana and katakana, full-width and half-width the same as for matching; the same names in path order). All the matches are sorted before the cut at `limit`. `tags`: the chips — the chosen tags first, in the order given and with the spelling given, `chosen: true`, and `count` over the matches (0 and still listed when nothing matches, so they can be turned off); then the other tags of all the matches (not only the first `limit`), most used first, `chosen: false` |
+| `search` | The GUI's search (`search::search`): the tags chosen as chips are kept apart from the typed `q`. Matches: `q` AND every tag in `chosen` (default: none), among the files with one of `exts` (extensions without the `.`, compared with upper and lower case and full-width and half-width the same; default or empty: any file, also those without an extension). `entries` and `total` as for `query`, except that `sort` sets the order of `entries`: `"path"` (default, path order) or `"name"` (file name order: by `name`, with upper and lower case, hiragana and katakana, full-width and half-width the same as for matching; the same names in path order). All the matches are sorted before the cut at `limit`. `tags`: the chips — the chosen tags first, in the order given and with the spelling given, `chosen: true`, and `count` over the matches (0 and still listed when nothing matches, so they can be turned off); then the other tags of all the matches (not only the first `limit`, and only those with one of `exts`), most used first, `chosen: false` |
 | `tags` | `tags`: the same objects as `tags --json` |
 | `rescan` | Scans the root again (`SharedIndex::rescan`). `total`: the number of entries in the new index |
 | `ping` | Nothing but `ok` |

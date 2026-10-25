@@ -13,6 +13,8 @@ struct Request {
     limit: Option<usize>,
     #[serde(default)]
     chosen: Vec<String>,
+    #[serde(default)]
+    exts: Vec<String>,
     sort: Option<String>,
 }
 
@@ -54,6 +56,7 @@ fn answer(index: &SharedIndex, request: &Request) -> Result<Value, String> {
         "search" => {
             let q = request.q.as_deref().ok_or("search: missing q")?;
             let chosen: Vec<&str> = request.chosen.iter().map(String::as_str).collect();
+            let exts: Vec<&str> = request.exts.iter().map(String::as_str).collect();
             let order = match request.sort.as_deref() {
                 None | Some("path") => Order::Path,
                 Some("name") => Order::Name,
@@ -63,6 +66,7 @@ fn answer(index: &SharedIndex, request: &Request) -> Result<Value, String> {
                 &index.snapshot(),
                 q,
                 &chosen,
+                &exts,
                 request.limit.unwrap_or(usize::MAX),
                 order,
             )?;
@@ -487,5 +491,74 @@ mod tests {
             response,
             json!({"id": 6, "ok": false, "error": "search: unknown sort: size"})
         );
+    }
+
+    #[test]
+    fn search_with_exts_returns_only_the_entries_with_those_extensions() {
+        let index = shared_of(&["a.mp4", "b.png", "c.mov", "d.txt"]);
+        let response = ask(
+            &index,
+            json!({"id": 1, "op": "search", "q": "", "exts": ["mp4", "mov"]}),
+        );
+        assert_eq!(rels(&response), ["a.mp4", "c.mov"]);
+    }
+
+    #[test]
+    fn search_with_exts_counts_the_total_and_the_tags_of_those_extensions_only() {
+        let index = shared_of(&["a{3D}.mp4", "b{3D}.png", "c{2D}.png", "d{solo}.mp4"]);
+        let response = ask(
+            &index,
+            json!({"id": 2, "op": "search", "q": "", "exts": ["mp4"]}),
+        );
+        assert_eq!(response["total"], 2);
+        assert_eq!(
+            response["tags"],
+            json!([
+                {"tag": "3D", "count": 1, "chosen": false},
+                {"tag": "solo", "count": 1, "chosen": false},
+            ])
+        );
+    }
+
+    #[test]
+    fn search_with_exts_narrows_down_before_the_limit_cut() {
+        let index = shared_of(&["a.png", "b.png", "c.mp4", "d.mp4"]);
+        let response = ask(
+            &index,
+            json!({"id": 3, "op": "search", "q": "", "exts": ["mp4"], "limit": 1}),
+        );
+        assert_eq!(response["total"], 2);
+        assert_eq!(rels(&response), ["c.mp4"]);
+    }
+
+    #[test]
+    fn search_with_empty_exts_does_not_narrow_down() {
+        let index = shared_of(&["a.mp4", "b.png", "c"]);
+        let response = ask(
+            &index,
+            json!({"id": 4, "op": "search", "q": "", "exts": []}),
+        );
+        assert_eq!(rels(&response), ["a.mp4", "b.png", "c"]);
+    }
+
+    #[test]
+    fn search_with_exts_compares_the_extensions_as_matching_does() {
+        // Upper and lower case, full-width and half-width are the same.
+        let index = shared_of(&["a.MP4", "b.mp4", "c.ｍｐ４", "d.png"]);
+        let response = ask(
+            &index,
+            json!({"id": 5, "op": "search", "q": "", "exts": ["Mp4"]}),
+        );
+        assert_eq!(rels(&response), ["a.MP4", "b.mp4", "c.ｍｐ４"]);
+    }
+
+    #[test]
+    fn search_with_exts_leaves_out_the_files_without_an_extension() {
+        let index = shared_of(&["README", "a.mp4", ".DS_Store"]);
+        let response = ask(
+            &index,
+            json!({"id": 6, "op": "search", "q": "", "exts": ["mp4"]}),
+        );
+        assert_eq!(rels(&response), ["a.mp4"]);
     }
 }
