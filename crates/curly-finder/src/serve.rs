@@ -402,4 +402,28 @@ mod tests {
             json!({"id": 8, "ok": false, "error": "search: missing q"})
         );
     }
+
+    #[test]
+    #[ignore]
+    fn search_with_sort_name_returns_the_entries_in_file_name_order() {}
+
+    #[test]
+    #[ignore]
+    fn search_with_sort_name_sorts_all_the_matches_before_the_limit_cut() {}
+
+    #[test]
+    #[ignore]
+    fn search_with_sort_name_keeps_path_order_for_the_same_name() {}
+
+    #[test]
+    #[ignore]
+    fn search_with_sort_name_compares_the_names_as_matching_does() {}
+
+    #[test]
+    #[ignore]
+    fn search_with_sort_path_returns_the_entries_in_path_order() {}
+
+    #[test]
+    #[ignore]
+    fn search_with_an_unknown_sort_answers_an_error() {}
 }
