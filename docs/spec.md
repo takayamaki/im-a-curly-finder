@@ -71,7 +71,7 @@ index.query("#solo #3D|#2D")?;                       // Vec<&Entry> (in path ord
 let query = Query::parse("opening")?.and_tags(["3D"]); // opening AND #3D, built on the parsed query
 index.matching(&query);                              // Vec<&Entry> (in path order)
 index.tags();                                        // Vec<TagCount> (most used first, with spelling variants)
-search(&index, "opening", &["3D"], 500, Order::Path)?; // Found (curly_finder::search: the GUI's search, see below)
+search(&index, "opening", &["3D"], &[], 500, Order::Path)?; // Found (curly_finder::search: the GUI's search, see below)
 index.lint();                                        // Vec<LintItem> (in path order, each folder once)
 shared.rescan()?;                                    // rebuilds, then swaps in the new index
 ```

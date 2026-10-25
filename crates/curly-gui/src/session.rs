@@ -55,7 +55,7 @@ impl Session {
     pub fn search(&self, expr: &str, chosen: &[&str], limit: usize) -> Result<Found, String> {
         let current = self.current.read().unwrap();
         let shared = current.as_ref().ok_or(NO_FOLDER)?;
-        search(&shared.snapshot(), expr, chosen, limit, Order::Path)
+        search(&shared.snapshot(), expr, chosen, &[], limit, Order::Path)
     }
 }
 

@@ -13,6 +13,8 @@ struct Request {
     limit: Option<usize>,
     #[serde(default)]
     chosen: Vec<String>,
+    #[serde(default)]
+    exts: Vec<String>,
     sort: Option<String>,
 }
 
@@ -54,6 +56,7 @@ fn answer(index: &SharedIndex, request: &Request) -> Result<Value, String> {
         "search" => {
             let q = request.q.as_deref().ok_or("search: missing q")?;
             let chosen: Vec<&str> = request.chosen.iter().map(String::as_str).collect();
+            let exts: Vec<&str> = request.exts.iter().map(String::as_str).collect();
             let order = match request.sort.as_deref() {
                 None | Some("path") => Order::Path,
                 Some("name") => Order::Name,
@@ -63,6 +66,7 @@ fn answer(index: &SharedIndex, request: &Request) -> Result<Value, String> {
                 &index.snapshot(),
                 q,
                 &chosen,
+                &exts,
                 request.limit.unwrap_or(usize::MAX),
                 order,
             )?;
@@ -490,8 +494,14 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn search_with_exts_returns_only_the_entries_with_those_extensions() {}
+    fn search_with_exts_returns_only_the_entries_with_those_extensions() {
+        let index = shared_of(&["a.mp4", "b.png", "c.mov", "d.txt"]);
+        let response = ask(
+            &index,
+            json!({"id": 1, "op": "search", "q": "", "exts": ["mp4", "mov"]}),
+        );
+        assert_eq!(rels(&response), ["a.mp4", "c.mov"]);
+    }
 
     #[test]
     #[ignore]
