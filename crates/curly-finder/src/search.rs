@@ -34,7 +34,7 @@ pub struct Chip {
 pub enum Order {
     /// By `rel`, as the index keeps the entries
     Path,
-    /// By `name`
+    /// By `name`, normalized as for matching (the same names stay in path order)
     Name,
 }
 
@@ -50,7 +50,7 @@ pub fn search(
     let query = Query::parse(expr).map_err(|e| e.to_string())?;
     let mut matches = index.matching(&query.and_tags(chosen.iter().copied()));
     if order == Order::Name {
-        matches.sort_by(|a, b| a.name.cmp(&b.name));
+        matches.sort_by_cached_key(|e| normalize(&e.name));
     }
     Ok(Found {
         total: matches.len(),

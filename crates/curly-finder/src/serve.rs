@@ -452,8 +452,18 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn search_with_sort_name_compares_the_names_as_matching_does() {}
+    fn search_with_sort_name_compares_the_names_as_matching_does() {
+        // Upper and lower case, hiragana and katakana, full-width and half-width are the same.
+        let index = shared_of(&["a/イ.mp4", "b/あ.mp4", "c/Ｂ.mp4", "d/a.mp4", "e/C.mp4"]);
+        let response = ask(
+            &index,
+            json!({"id": 4, "op": "search", "q": "", "sort": "name"}),
+        );
+        assert_eq!(
+            rels(&response),
+            ["d/a.mp4", "c/Ｂ.mp4", "e/C.mp4", "b/あ.mp4", "a/イ.mp4"]
+        );
+    }
 
     #[test]
     #[ignore]
