@@ -553,6 +553,12 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn search_with_exts_leaves_out_the_files_without_an_extension() {}
+    fn search_with_exts_leaves_out_the_files_without_an_extension() {
+        let index = shared_of(&["README", "a.mp4", ".DS_Store"]);
+        let response = ask(
+            &index,
+            json!({"id": 6, "op": "search", "q": "", "exts": ["mp4"]}),
+        );
+        assert_eq!(rels(&response), ["a.mp4"]);
+    }
 }
