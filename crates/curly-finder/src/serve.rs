@@ -55,8 +55,9 @@ fn answer(index: &SharedIndex, request: &Request) -> Result<Value, String> {
             let q = request.q.as_deref().ok_or("search: missing q")?;
             let chosen: Vec<&str> = request.chosen.iter().map(String::as_str).collect();
             let order = match request.sort.as_deref() {
+                None | Some("path") => Order::Path,
                 Some("name") => Order::Name,
-                _ => Order::Path,
+                Some(sort) => return Err(format!("search: unknown sort: {sort}")),
             };
             let found = search(
                 &index.snapshot(),
@@ -476,6 +477,15 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn search_with_an_unknown_sort_answers_an_error() {}
+    fn search_with_an_unknown_sort_answers_an_error() {
+        let index = shared_of(&["opening.mp4"]);
+        let response = ask(
+            &index,
+            json!({"id": 6, "op": "search", "q": "", "sort": "size"}),
+        );
+        assert_eq!(
+            response,
+            json!({"id": 6, "ok": false, "error": "search: unknown sort: size"})
+        );
+    }
 }
