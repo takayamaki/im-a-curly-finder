@@ -431,12 +431,25 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn search_with_sort_name_sorts_all_the_matches_before_the_limit_cut() {}
+    fn search_with_sort_name_sorts_all_the_matches_before_the_limit_cut() {
+        let index = shared_of(&["a/songC.mp4", "b/songB.mp4", "c/songA.mp4"]);
+        let response = ask(
+            &index,
+            json!({"id": 2, "op": "search", "q": "", "sort": "name", "limit": 2}),
+        );
+        assert_eq!(response["total"], 3);
+        assert_eq!(rels(&response), ["c/songA.mp4", "b/songB.mp4"]);
+    }
 
     #[test]
-    #[ignore]
-    fn search_with_sort_name_keeps_path_order_for_the_same_name() {}
+    fn search_with_sort_name_keeps_path_order_for_the_same_name() {
+        let index = shared_of(&["b/song.mp4", "a/song.mp4", "c/other.mp4"]);
+        let response = ask(
+            &index,
+            json!({"id": 3, "op": "search", "q": "", "sort": "name"}),
+        );
+        assert_eq!(rels(&response), ["c/other.mp4", "a/song.mp4", "b/song.mp4"]);
+    }
 
     #[test]
     #[ignore]
