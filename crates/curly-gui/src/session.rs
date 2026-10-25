@@ -5,7 +5,7 @@ use std::sync::{Arc, RwLock};
 
 use curly_finder::index::{Index, SharedIndex};
 
-use curly_finder::search::{Found, search};
+use curly_finder::search::{Found, Order, search};
 
 /// The message shown when no folder is open yet.
 pub const NO_FOLDER: &str = "No folder is open. Choose one with the Folder button.";
@@ -55,7 +55,7 @@ impl Session {
     pub fn search(&self, expr: &str, chosen: &[&str], limit: usize) -> Result<Found, String> {
         let current = self.current.read().unwrap();
         let shared = current.as_ref().ok_or(NO_FOLDER)?;
-        search(&shared.snapshot(), expr, chosen, limit)
+        search(&shared.snapshot(), expr, chosen, limit, Order::Path)
     }
 }
 

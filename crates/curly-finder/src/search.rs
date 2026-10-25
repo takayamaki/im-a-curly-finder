@@ -11,7 +11,7 @@ use serde::Serialize;
 /// What the result list shows.
 #[derive(Debug, Serialize)]
 pub struct Found {
-    /// The first `limit` matches, in path order
+    /// The first `limit` matches, in the order asked for
     pub entries: Vec<Entry>,
     /// Number of all matches
     pub total: usize,
@@ -29,10 +29,29 @@ pub struct Chip {
     pub chosen: bool,
 }
 
+/// The order of the result list.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Order {
+    /// By `rel`, as the index keeps the entries
+    Path,
+    /// By `name`, normalized as for matching (the same names stay in path order)
+    Name,
+}
+
 /// Searches for `expr` AND every one of the `chosen` tags (the chips clicked on).
-pub fn search(index: &Index, expr: &str, chosen: &[&str], limit: usize) -> Result<Found, String> {
+/// All the matches are put in `order` before the first `limit` are taken.
+pub fn search(
+    index: &Index,
+    expr: &str,
+    chosen: &[&str],
+    limit: usize,
+    order: Order,
+) -> Result<Found, String> {
     let query = Query::parse(expr).map_err(|e| e.to_string())?;
-    let matches = index.matching(&query.and_tags(chosen.iter().copied()));
+    let mut matches = index.matching(&query.and_tags(chosen.iter().copied()));
+    if order == Order::Name {
+        matches.sort_by_cached_key(|e| normalize(&e.name));
+    }
     Ok(Found {
         total: matches.len(),
         tags: chips(chosen, count_tags(matches.iter().copied())),
@@ -100,7 +119,7 @@ mod tests {
 
     mod search {
         use super::{chips, index_of, rels, tag_counts};
-        use crate::search::search;
+        use crate::search::{Order, search};
 
         #[test]
         fn returns_the_entries_that_match_the_query() {
@@ -109,7 +128,7 @@ mod tests {
                 "game-a/MV{2D}/Blue Sky.mp4",
                 "game-b/MV{3D}/good night!.mp4",
             ]);
-            let found = search(&index, "#3D", &[], 100).unwrap();
+            let found = search(&index, "#3D", &[], 100, Order::Path).unwrap();
             assert_eq!(
                 rels(&found),
                 [
@@ -123,7 +142,7 @@ mod tests {
         #[test]
         fn returns_every_entry_for_an_empty_query() {
             let index = index_of(&["b.mp4", "a/c.mp4"]);
-            let found = search(&index, "", &[], 100).unwrap();
+            let found = search(&index, "", &[], 100, Order::Path).unwrap();
             assert_eq!(rels(&found), ["a/c.mp4", "b.mp4"]);
             assert_eq!(found.total, 2);
         }
@@ -131,7 +150,7 @@ mod tests {
         #[test]
         fn returns_at_most_limit_entries_with_the_total_count() {
             let index = index_of(&["a.mp4", "b.mp4", "c.mp4"]);
-            let found = search(&index, "", &[], 2).unwrap();
+            let found = search(&index, "", &[], 2, Order::Path).unwrap();
             assert_eq!(rels(&found), ["a.mp4", "b.mp4"]);
             assert_eq!(found.total, 3);
         }
@@ -144,14 +163,14 @@ mod tests {
                 "MV{2D}/songC{solo}.mp4",
                 "live{3D}/songD{solo}.mp4",
             ]);
-            let found = search(&index, "MV", &[], 100).unwrap();
+            let found = search(&index, "MV", &[], 100, Order::Path).unwrap();
             assert_eq!(tag_counts(&found), [("3D", 2), ("solo", 2), ("2D", 1)]);
         }
 
         #[test]
         fn counts_the_tags_of_matches_beyond_the_limit() {
             let index = index_of(&["a{3D}.mp4", "b{3D}.mp4", "c{2D}.mp4"]);
-            let found = search(&index, "", &[], 1).unwrap();
+            let found = search(&index, "", &[], 1, Order::Path).unwrap();
             assert_eq!(rels(&found), ["a{3D}.mp4"]);
             assert_eq!(tag_counts(&found), [("3D", 2), ("2D", 1)]);
         }
@@ -163,7 +182,7 @@ mod tests {
                 "MV{3D}/ending.mp4",
                 "MV{2D}/opening{solo}.mp4",
             ]);
-            let found = search(&index, "opening", &["3D"], 100).unwrap();
+            let found = search(&index, "opening", &["3D"], 100, Order::Path).unwrap();
             assert_eq!(rels(&found), ["MV{3D}/opening{solo}.mp4"]);
             assert_eq!(found.total, 1);
         }
@@ -175,7 +194,7 @@ mod tests {
                 "b{3D}{solo}{live}.mp4",
                 "c{3D}{live}.mp4",
             ]);
-            let found = search(&index, "", &["live"], 100).unwrap();
+            let found = search(&index, "", &["live"], 100, Order::Path).unwrap();
             assert_eq!(
                 chips(&found),
                 [("live", 2, true), ("3D", 2, false), ("solo", 1, false)]
@@ -185,7 +204,7 @@ mod tests {
         #[test]
         fn keeps_a_chosen_tag_that_nothing_matches_with_a_count_of_zero() {
             let index = index_of(&["a{3D}.mp4", "b{2D}{solo}.mp4"]);
-            let found = search(&index, "", &["3D", "solo"], 100).unwrap();
+            let found = search(&index, "", &["3D", "solo"], 100, Order::Path).unwrap();
             assert_eq!(found.total, 0);
             assert_eq!(chips(&found), [("3D", 0, true), ("solo", 0, true)]);
         }
@@ -194,7 +213,7 @@ mod tests {
         fn keeps_the_spelling_of_a_chosen_tag() {
             // The GUI turns a chip off by the spelling it chose, even if the files mostly spell it otherwise.
             let index = index_of(&["a{3D}.mp4", "b{3D}.mp4", "c{3d}.mp4"]);
-            let found = search(&index, "", &["3d"], 100).unwrap();
+            let found = search(&index, "", &["3d"], 100, Order::Path).unwrap();
             assert_eq!(chips(&found), [("3d", 3, true)]);
         }
 
@@ -202,7 +221,7 @@ mod tests {
         fn returns_the_error_message_for_a_broken_query() {
             let index = index_of(&["a.mp4"]);
             assert_eq!(
-                search(&index, "(a", &[], 100).unwrap_err(),
+                search(&index, "(a", &[], 100, Order::Path).unwrap_err(),
                 "unbalanced ( and )"
             );
         }
