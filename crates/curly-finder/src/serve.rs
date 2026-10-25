@@ -4,7 +4,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::index::SharedIndex;
-use crate::search::search;
+use crate::search::{Order, search};
 
 #[derive(Deserialize)]
 struct Request {
@@ -13,6 +13,7 @@ struct Request {
     limit: Option<usize>,
     #[serde(default)]
     chosen: Vec<String>,
+    sort: Option<String>,
 }
 
 /// Answers one request line with one response line (without the newline).
@@ -53,11 +54,16 @@ fn answer(index: &SharedIndex, request: &Request) -> Result<Value, String> {
         "search" => {
             let q = request.q.as_deref().ok_or("search: missing q")?;
             let chosen: Vec<&str> = request.chosen.iter().map(String::as_str).collect();
+            let order = match request.sort.as_deref() {
+                Some("name") => Order::Name,
+                _ => Order::Path,
+            };
             let found = search(
                 &index.snapshot(),
                 q,
                 &chosen,
                 request.limit.unwrap_or(usize::MAX),
+                order,
             )?;
             let mut body = serde_json::to_value(found).map_err(|e| e.to_string())?;
             body["ok"] = json!(true);
@@ -404,8 +410,25 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn search_with_sort_name_returns_the_entries_in_file_name_order() {}
+    fn search_with_sort_name_returns_the_entries_in_file_name_order() {
+        let index = shared_of(&[
+            "game-a/MV{3D}/songC.mp4",
+            "game-a/MV{2D}/songB.mp4",
+            "game-b/songA.mp4",
+        ]);
+        let response = ask(
+            &index,
+            json!({"id": 1, "op": "search", "q": "", "sort": "name"}),
+        );
+        assert_eq!(
+            rels(&response),
+            [
+                "game-b/songA.mp4",
+                "game-a/MV{2D}/songB.mp4",
+                "game-a/MV{3D}/songC.mp4"
+            ]
+        );
+    }
 
     #[test]
     #[ignore]
