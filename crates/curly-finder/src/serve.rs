@@ -488,4 +488,28 @@ mod tests {
             json!({"id": 6, "ok": false, "error": "search: unknown sort: size"})
         );
     }
+
+    #[test]
+    #[ignore]
+    fn search_with_exts_returns_only_the_entries_with_those_extensions() {}
+
+    #[test]
+    #[ignore]
+    fn search_with_exts_counts_the_total_and_the_tags_of_those_extensions_only() {}
+
+    #[test]
+    #[ignore]
+    fn search_with_exts_narrows_down_before_the_limit_cut() {}
+
+    #[test]
+    #[ignore]
+    fn search_with_empty_exts_does_not_narrow_down() {}
+
+    #[test]
+    #[ignore]
+    fn search_with_exts_compares_the_extensions_as_matching_does() {}
+
+    #[test]
+    #[ignore]
+    fn search_with_exts_leaves_out_the_files_without_an_extension() {}
 }
