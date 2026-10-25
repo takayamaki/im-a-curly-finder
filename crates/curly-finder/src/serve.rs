@@ -504,16 +504,42 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn search_with_exts_counts_the_total_and_the_tags_of_those_extensions_only() {}
+    fn search_with_exts_counts_the_total_and_the_tags_of_those_extensions_only() {
+        let index = shared_of(&["a{3D}.mp4", "b{3D}.png", "c{2D}.png", "d{solo}.mp4"]);
+        let response = ask(
+            &index,
+            json!({"id": 2, "op": "search", "q": "", "exts": ["mp4"]}),
+        );
+        assert_eq!(response["total"], 2);
+        assert_eq!(
+            response["tags"],
+            json!([
+                {"tag": "3D", "count": 1, "chosen": false},
+                {"tag": "solo", "count": 1, "chosen": false},
+            ])
+        );
+    }
 
     #[test]
-    #[ignore]
-    fn search_with_exts_narrows_down_before_the_limit_cut() {}
+    fn search_with_exts_narrows_down_before_the_limit_cut() {
+        let index = shared_of(&["a.png", "b.png", "c.mp4", "d.mp4"]);
+        let response = ask(
+            &index,
+            json!({"id": 3, "op": "search", "q": "", "exts": ["mp4"], "limit": 1}),
+        );
+        assert_eq!(response["total"], 2);
+        assert_eq!(rels(&response), ["c.mp4"]);
+    }
 
     #[test]
-    #[ignore]
-    fn search_with_empty_exts_does_not_narrow_down() {}
+    fn search_with_empty_exts_does_not_narrow_down() {
+        let index = shared_of(&["a.mp4", "b.png", "c"]);
+        let response = ask(
+            &index,
+            json!({"id": 4, "op": "search", "q": "", "exts": []}),
+        );
+        assert_eq!(rels(&response), ["a.mp4", "b.png", "c"]);
+    }
 
     #[test]
     #[ignore]
