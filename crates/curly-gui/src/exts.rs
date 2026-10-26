@@ -64,8 +64,10 @@ mod tests {
         }
 
         #[test]
-        #[ignore]
-        fn sends_nothing_when_nothing_is_checked() {}
+        fn sends_nothing_when_nothing_is_checked() {
+            // An empty result would never be wanted: nothing checked is taken as any file.
+            assert!(request_exts(&[]).is_empty());
+        }
 
         #[test]
         #[ignore]
