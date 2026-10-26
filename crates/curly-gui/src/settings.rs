@@ -9,9 +9,10 @@ use serde::{Deserialize, Serialize};
 pub struct Settings {
     /// The folder last opened from the GUI
     pub root: Option<PathBuf>,
-    /// The checked extensions of the drop-down (`exts::request_exts`). None: never saved (any file)
+    /// The extensions unchecked in the drop-down (`exts::request_exts`). The unchecked ones rather
+    /// than the checked ones, so that an extension new to the folder starts checked
     #[serde(default)]
-    pub exts: Option<Vec<String>>,
+    pub unchecked_exts: Vec<String>,
 }
 
 impl Settings {
@@ -80,19 +81,7 @@ mod tests {
         }
 
         #[test]
-        fn loads_the_checked_extensions_that_were_saved() {
-            let dir = tempfile::tempdir().unwrap();
-            let file = dir.path().join("settings.json");
-            let settings = Settings {
-                root: Some(PathBuf::from(r"D:\clips")),
-                exts: Some(vec!["mp4".to_string(), "png".to_string()]),
-            };
-            settings.save(&file).unwrap();
-            assert_eq!(Settings::load(&file), settings);
-        }
-
-        #[test]
-        fn loads_no_extensions_from_a_file_saved_before_they_were_kept() {
+        fn loads_no_unchecked_extensions_from_a_file_saved_before_they_were_kept() {
             let dir = tempfile::tempdir().unwrap();
             let file = dir.path().join("settings.json");
             std::fs::write(&file, r#"{ "root": "D:\\clips" }"#).unwrap();
@@ -100,13 +89,21 @@ mod tests {
                 Settings::load(&file),
                 Settings {
                     root: Some(PathBuf::from(r"D:\clips")),
-                    exts: None,
+                    unchecked_exts: Vec::new(),
                 }
             );
         }
 
         #[test]
-        #[ignore]
-        fn loads_the_unchecked_extensions_that_were_saved() {}
+        fn loads_the_unchecked_extensions_that_were_saved() {
+            let dir = tempfile::tempdir().unwrap();
+            let file = dir.path().join("settings.json");
+            let settings = Settings {
+                root: Some(PathBuf::from(r"D:\clips")),
+                unchecked_exts: vec!["png".to_string(), String::new()],
+            };
+            settings.save(&file).unwrap();
+            assert_eq!(Settings::load(&file), settings);
+        }
     }
 }
