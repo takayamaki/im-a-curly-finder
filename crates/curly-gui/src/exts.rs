@@ -25,6 +25,15 @@ pub const EXT_GROUPS: &[ExtGroup] = &[
     },
 ];
 
+/// Others: the extensions of the folder (`found`, as `Session::exts` gives them) in no group.
+pub fn other_exts(found: &[String]) -> Vec<String> {
+    found
+        .iter()
+        .filter(|e| !EXT_GROUPS.iter().any(|g| g.exts.contains(&e.as_str())))
+        .cloned()
+        .collect()
+}
+
 /// The extensions to search for: those of the groups and `others` that are not `unchecked`. None
 /// (any file) when nothing is unchecked.
 pub fn request_exts(unchecked: &[String], others: &[String]) -> Vec<String> {
@@ -121,9 +130,16 @@ mod tests {
     }
 
     mod other_exts {
+        use super::strings;
+        use crate::exts::other_exts;
+
         #[test]
-        #[ignore]
-        fn are_the_extensions_of_the_folder_in_no_group() {}
+        fn are_the_extensions_of_the_folder_in_no_group() {
+            assert_eq!(
+                other_exts(&strings(&["mp4", "psd", "png", "txt"])),
+                ["psd", "txt"]
+            );
+        }
 
         #[test]
         #[ignore]
