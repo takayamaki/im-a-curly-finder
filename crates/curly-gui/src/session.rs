@@ -51,11 +51,18 @@ impl Session {
             .unwrap_or_default()
     }
 
-    /// Searches the open folder, in file name order. See [`curly_finder::search::search`].
-    pub fn search(&self, expr: &str, chosen: &[&str], limit: usize) -> Result<Found, String> {
+    /// Searches the open folder among the files with one of `exts` (any file if empty), in file
+    /// name order. See [`curly_finder::search::search`].
+    pub fn search(
+        &self,
+        expr: &str,
+        chosen: &[&str],
+        exts: &[&str],
+        limit: usize,
+    ) -> Result<Found, String> {
         let current = self.current.read().unwrap();
         let shared = current.as_ref().ok_or(NO_FOLDER)?;
-        search(&shared.snapshot(), expr, chosen, &[], limit, Order::Name)
+        search(&shared.snapshot(), expr, chosen, exts, limit, Order::Name)
     }
 }
 
@@ -87,7 +94,7 @@ mod tests {
             touch(dir.path(), "game-a/MV{2D}/Blue Sky.mp4");
             let session = Session::new();
             session.open(dir.path()).unwrap();
-            let found = session.search("#3D", &[], 100).unwrap();
+            let found = session.search("#3D", &[], &[], 100).unwrap();
             assert_eq!(rels(&found), ["game-a/MV{3D}/opening.mp4"]);
         }
 
@@ -108,7 +115,7 @@ mod tests {
             let session = Session::new();
             session.open(a.path()).unwrap();
             session.open(b.path()).unwrap();
-            assert_eq!(rels(&session.search("", &[], 100).unwrap()), ["b.mp4"]);
+            assert_eq!(rels(&session.search("", &[], &[], 100).unwrap()), ["b.mp4"]);
             assert_eq!(session.root().as_deref(), Some(b.path()));
         }
 
@@ -121,7 +128,7 @@ mod tests {
             touch(dir.path(), "b.mp4");
             session.rescan().unwrap();
             assert_eq!(
-                rels(&session.search("", &[], 100).unwrap()),
+                rels(&session.search("", &[], &[], 100).unwrap()),
                 ["a.mp4", "b.mp4"]
             );
         }
@@ -145,7 +152,7 @@ mod tests {
         #[test]
         fn search_before_opening_a_folder_is_an_error() {
             let session = Session::new();
-            assert_eq!(session.search("", &[], 100).unwrap_err(), NO_FOLDER);
+            assert_eq!(session.search("", &[], &[], 100).unwrap_err(), NO_FOLDER);
         }
 
         #[test]
@@ -163,7 +170,7 @@ mod tests {
             let missing = dir.path().join("missing");
             assert!(session.open(&missing).is_err());
             assert_eq!(session.root().as_deref(), Some(dir.path()));
-            assert_eq!(rels(&session.search("", &[], 100).unwrap()), ["a.mp4"]);
+            assert_eq!(rels(&session.search("", &[], &[], 100).unwrap()), ["a.mp4"]);
         }
 
         #[test]
@@ -175,13 +182,23 @@ mod tests {
             let session = Session::new();
             session.open(dir.path()).unwrap();
             assert_eq!(
-                rels(&session.search("", &[], 100).unwrap()),
+                rels(&session.search("", &[], &[], 100).unwrap()),
                 ["b/songA.mp4", "songB.mp4", "a/songC.mp4"]
             );
         }
 
         #[test]
-        #[ignore]
-        fn narrows_down_to_the_extensions_given() {}
+        fn narrows_down_to_the_extensions_given() {
+            let dir = tempfile::tempdir().unwrap();
+            touch(dir.path(), "a.mp4");
+            touch(dir.path(), "b.png");
+            touch(dir.path(), "c.mov");
+            let session = Session::new();
+            session.open(dir.path()).unwrap();
+            assert_eq!(
+                rels(&session.search("", &[], &["mp4", "mov"], 100).unwrap()),
+                ["a.mp4", "c.mov"]
+            );
+        }
     }
 }
