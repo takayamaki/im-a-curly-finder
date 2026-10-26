@@ -25,8 +25,16 @@ pub const EXT_GROUPS: &[ExtGroup] = &[
     },
 ];
 
-/// The extensions to search for, given the checked ones.
+/// The extensions to search for, given the checked ones: none (any file) when every extension of
+/// the groups is checked.
 pub fn request_exts(checked: &[String]) -> Vec<String> {
+    let every = EXT_GROUPS
+        .iter()
+        .flat_map(|g| g.exts)
+        .all(|e| checked.iter().any(|c| c == e));
+    if every {
+        return Vec::new();
+    }
     checked.to_vec()
 }
 
@@ -38,7 +46,7 @@ mod tests {
 
     mod request_exts {
         use super::strings;
-        use crate::exts::request_exts;
+        use crate::exts::{EXT_GROUPS, request_exts};
 
         #[test]
         fn sends_the_checked_extensions() {
@@ -46,8 +54,14 @@ mod tests {
         }
 
         #[test]
-        #[ignore]
-        fn sends_nothing_when_every_extension_is_checked() {}
+        fn sends_nothing_when_every_extension_is_checked() {
+            // Any file then, also those of extensions in no group (.txt etc.).
+            let every: Vec<String> = EXT_GROUPS
+                .iter()
+                .flat_map(|g| g.exts.iter().map(|e| e.to_string()))
+                .collect();
+            assert!(request_exts(&every).is_empty());
+        }
 
         #[test]
         #[ignore]
