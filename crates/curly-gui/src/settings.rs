@@ -9,6 +9,10 @@ use serde::{Deserialize, Serialize};
 pub struct Settings {
     /// The folder last opened from the GUI
     pub root: Option<PathBuf>,
+    /// The extensions unchecked in the drop-down (`exts::request_exts`). The unchecked ones rather
+    /// than the checked ones, so that an extension new to the folder starts checked
+    #[serde(default)]
+    pub unchecked_exts: Vec<String>,
 }
 
 impl Settings {
@@ -43,6 +47,7 @@ mod tests {
             let file = dir.path().join("settings.json");
             let settings = Settings {
                 root: Some(PathBuf::from(r"D:\clips")),
+                ..Settings::default()
             };
             settings.save(&file).unwrap();
             assert_eq!(Settings::load(&file), settings);
@@ -61,6 +66,7 @@ mod tests {
             let file = dir.path().join("config/curly/settings.json");
             let settings = Settings {
                 root: Some(PathBuf::from(r"D:\clips")),
+                ..Settings::default()
             };
             settings.save(&file).unwrap();
             assert_eq!(Settings::load(&file), settings);
@@ -72,6 +78,32 @@ mod tests {
             let file = dir.path().join("settings.json");
             std::fs::write(&file, "{ not json").unwrap();
             assert_eq!(Settings::load(&file), Settings::default());
+        }
+
+        #[test]
+        fn loads_no_unchecked_extensions_from_a_file_saved_before_they_were_kept() {
+            let dir = tempfile::tempdir().unwrap();
+            let file = dir.path().join("settings.json");
+            std::fs::write(&file, r#"{ "root": "D:\\clips" }"#).unwrap();
+            assert_eq!(
+                Settings::load(&file),
+                Settings {
+                    root: Some(PathBuf::from(r"D:\clips")),
+                    unchecked_exts: Vec::new(),
+                }
+            );
+        }
+
+        #[test]
+        fn loads_the_unchecked_extensions_that_were_saved() {
+            let dir = tempfile::tempdir().unwrap();
+            let file = dir.path().join("settings.json");
+            let settings = Settings {
+                root: Some(PathBuf::from(r"D:\clips")),
+                unchecked_exts: vec!["png".to_string(), String::new()],
+            };
+            settings.save(&file).unwrap();
+            assert_eq!(Settings::load(&file), settings);
         }
     }
 }

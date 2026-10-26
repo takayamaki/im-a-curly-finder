@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use curly_finder::search::Found;
+use curly_gui::exts::{EXT_GROUPS, other_exts, request_exts};
 use curly_gui::root;
 use curly_gui::session::Session;
 use curly_gui::settings::Settings;
@@ -40,9 +41,63 @@ fn current_folder(session: State<Arc<Session>>, startup: State<StartupError>) ->
 }
 
 #[tauri::command]
-fn query(session: State<Arc<Session>>, expr: String, chosen: Vec<String>) -> Result<Found, String> {
+fn query(
+    session: State<Arc<Session>>,
+    expr: String,
+    chosen: Vec<String>,
+    unchecked: Vec<String>,
+) -> Result<Found, String> {
     let chosen: Vec<&str> = chosen.iter().map(String::as_str).collect();
-    session.search(&expr, &chosen, LIMIT)
+    let exts = request_exts(&unchecked, &other_exts(&session.exts()));
+    let exts: Vec<&str> = exts.iter().map(String::as_str).collect();
+    session.search(&expr, &chosen, &exts, LIMIT)
+}
+
+/// A group of the extension drop-down as the page shows it.
+#[derive(Serialize)]
+struct ExtChoiceGroup {
+    name: &'static str,
+    exts: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct ExtChoices {
+    /// The groups, then Others (the extensions of the open folder in no group) if there are any
+    groups: Vec<ExtChoiceGroup>,
+    /// The unchecked extensions, as saved
+    unchecked: Vec<String>,
+}
+
+#[tauri::command]
+fn ext_choices(app: AppHandle, session: State<Arc<Session>>) -> ExtChoices {
+    let mut groups: Vec<ExtChoiceGroup> = EXT_GROUPS
+        .iter()
+        .map(|g| ExtChoiceGroup {
+            name: g.name,
+            exts: g.exts.iter().map(|e| e.to_string()).collect(),
+        })
+        .collect();
+    let others = other_exts(&session.exts());
+    if !others.is_empty() {
+        groups.push(ExtChoiceGroup {
+            name: "Others",
+            exts: others,
+        });
+    }
+    let unchecked = settings_file(&app)
+        .map(|file| Settings::load(&file).unchecked_exts)
+        .unwrap_or_default();
+    ExtChoices { groups, unchecked }
+}
+
+#[tauri::command]
+fn save_exts(app: AppHandle, unchecked: Vec<String>) -> Result<(), String> {
+    let file = settings_file(&app)?;
+    let mut settings = Settings::load(&file);
+    settings.unchecked_exts = unchecked;
+    settings
+        .save(&file)
+        .map_err(|e| format!("Could not remember the extensions: {e}"))
 }
 
 #[tauri::command]
@@ -66,8 +121,11 @@ async fn open_folder(
         .await
         .map_err(|e| e.to_string())??;
     *startup.0.lock().unwrap() = None;
-    Settings { root: Some(dir) }
-        .save(&settings_file(&app)?)
+    let file = settings_file(&app)?;
+    let mut settings = Settings::load(&file);
+    settings.root = Some(dir);
+    settings
+        .save(&file)
         .map_err(|e| format!("Opened, but could not remember the folder: {e}"))
 }
 
@@ -93,7 +151,9 @@ fn main() {
             current_folder,
             query,
             rescan,
-            open_folder
+            open_folder,
+            ext_choices,
+            save_exts
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
