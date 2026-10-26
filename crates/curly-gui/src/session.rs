@@ -1,9 +1,11 @@
 //! The folder that is open now and its index.
 
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
 use curly_finder::index::{Index, SharedIndex};
+use curly_finder::normalize::normalize;
 
 use curly_finder::search::{Found, Order, search};
 
@@ -49,6 +51,22 @@ impl Session {
             .as_ref()
             .map(|shared| shared.snapshot().skipped.clone())
             .unwrap_or_default()
+    }
+
+    /// The extensions of the files in the open folder, each once, normalized as for matching, in
+    /// order ("" for the files without one). None before a folder is open.
+    pub fn exts(&self) -> Vec<String> {
+        let current = self.current.read().unwrap();
+        let Some(shared) = current.as_ref() else {
+            return Vec::new();
+        };
+        let exts: BTreeSet<String> = shared
+            .snapshot()
+            .entries
+            .iter()
+            .map(|e| normalize(&e.ext))
+            .collect();
+        exts.into_iter().collect()
     }
 
     /// Searches the open folder among the files with one of `exts` (any file if empty), in file
@@ -202,7 +220,16 @@ mod tests {
         }
 
         #[test]
-        #[ignore]
-        fn lists_the_extensions_of_the_open_folder() {}
+        fn lists_the_extensions_of_the_open_folder() {
+            // Each once, normalized as for matching (MP4 is mp4), in order.
+            let dir = tempfile::tempdir().unwrap();
+            touch(dir.path(), "a.mp4");
+            touch(dir.path(), "b/c.MP4");
+            touch(dir.path(), "d.txt");
+            touch(dir.path(), "README");
+            let session = Session::new();
+            session.open(dir.path()).unwrap();
+            assert_eq!(session.exts(), ["", "mp4", "txt"]);
+        }
     }
 }
