@@ -51,11 +51,11 @@ impl Session {
             .unwrap_or_default()
     }
 
-    /// Searches the open folder. See [`curly_finder::search::search`].
+    /// Searches the open folder, in file name order. See [`curly_finder::search::search`].
     pub fn search(&self, expr: &str, chosen: &[&str], limit: usize) -> Result<Found, String> {
         let current = self.current.read().unwrap();
         let shared = current.as_ref().ok_or(NO_FOLDER)?;
-        search(&shared.snapshot(), expr, chosen, &[], limit, Order::Path)
+        search(&shared.snapshot(), expr, chosen, &[], limit, Order::Name)
     }
 }
 
@@ -167,8 +167,18 @@ mod tests {
         }
 
         #[test]
-        #[ignore]
-        fn lists_the_files_in_file_name_order() {}
+        fn lists_the_files_in_file_name_order() {
+            let dir = tempfile::tempdir().unwrap();
+            touch(dir.path(), "a/songC.mp4");
+            touch(dir.path(), "b/songA.mp4");
+            touch(dir.path(), "songB.mp4");
+            let session = Session::new();
+            session.open(dir.path()).unwrap();
+            assert_eq!(
+                rels(&session.search("", &[], 100).unwrap()),
+                ["b/songA.mp4", "songB.mp4", "a/songC.mp4"]
+            );
+        }
 
         #[test]
         #[ignore]
