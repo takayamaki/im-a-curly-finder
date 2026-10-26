@@ -25,14 +25,23 @@ pub const EXT_GROUPS: &[ExtGroup] = &[
     },
 ];
 
-/// The extensions to search for: those of the groups and `others` that are not `unchecked`.
+/// The extensions to search for: those of the groups and `others` that are not `unchecked`. None
+/// (any file) when nothing is unchecked.
 pub fn request_exts(unchecked: &[String], others: &[String]) -> Vec<String> {
-    EXT_GROUPS
+    let offered: Vec<String> = EXT_GROUPS
         .iter()
         .flat_map(|g| g.exts.iter().map(|e| e.to_string()))
         .chain(others.iter().cloned())
+        .collect();
+    let kept: Vec<String> = offered
+        .iter()
         .filter(|e| !unchecked.contains(e))
-        .collect()
+        .cloned()
+        .collect();
+    if kept.len() == offered.len() {
+        return Vec::new();
+    }
+    kept
 }
 
 #[cfg(test)]
@@ -74,8 +83,10 @@ mod tests {
         }
 
         #[test]
-        #[ignore]
-        fn sends_nothing_when_nothing_is_unchecked() {}
+        fn sends_nothing_when_nothing_is_unchecked() {
+            // Any file then.
+            assert!(request_exts(&[], &strings(&["txt", ""])).is_empty());
+        }
 
         #[test]
         #[ignore]
