@@ -68,7 +68,7 @@ mod tests {
     // the checked ones (so that an extension new to the folder starts checked).
     mod request_exts_with_others {
         use super::strings;
-        use crate::exts::request_exts;
+        use crate::exts::{EXT_GROUPS, request_exts};
 
         #[test]
         fn sends_the_extensions_left_checked() {
@@ -89,16 +89,35 @@ mod tests {
         }
 
         #[test]
-        #[ignore]
-        fn sends_nothing_when_everything_is_unchecked() {}
+        fn sends_nothing_when_everything_is_unchecked() {
+            // An empty list would never be wanted: nothing checked is taken as any file.
+            let mut all: Vec<String> = EXT_GROUPS
+                .iter()
+                .flat_map(|g| g.exts.iter().map(|e| e.to_string()))
+                .collect();
+            all.push("txt".to_string());
+            assert!(request_exts(&all, &strings(&["txt"])).is_empty());
+        }
 
         #[test]
-        #[ignore]
-        fn sends_the_other_extensions_left_checked() {}
+        fn sends_the_other_extensions_left_checked() {
+            // "" is the files without an extension.
+            let groups: Vec<String> = EXT_GROUPS
+                .iter()
+                .flat_map(|g| g.exts.iter().map(|e| e.to_string()))
+                .collect();
+            assert_eq!(request_exts(&groups, &strings(&["txt", ""])), ["txt", ""]);
+        }
 
         #[test]
-        #[ignore]
-        fn ignores_unchecked_extensions_that_are_not_offered() {}
+        fn ignores_unchecked_extensions_that_are_not_offered() {
+            // An extension no longer in the folder, still in settings.json.
+            assert!(request_exts(&strings(&["xyz"]), &strings(&["txt"])).is_empty());
+            assert_eq!(
+                request_exts(&strings(&["xyz", "txt"]), &strings(&["txt"])).len(),
+                20
+            );
+        }
     }
 
     mod other_exts {
