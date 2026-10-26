@@ -25,58 +25,20 @@ pub const EXT_GROUPS: &[ExtGroup] = &[
     },
 ];
 
-/// The extensions to search for, given the checked ones: none (any file) when every extension of
-/// the groups is checked. Extensions in no group are left out; the rest go in the order of the
-/// groups.
-pub fn request_exts(checked: &[String]) -> Vec<String> {
-    let all = EXT_GROUPS.iter().flat_map(|g| g.exts);
-    let kept: Vec<String> = all
-        .clone()
-        .filter(|e| checked.iter().any(|c| c == *e))
-        .map(|e| e.to_string())
-        .collect();
-    if kept.len() == all.count() {
-        return Vec::new();
-    }
-    kept
+/// The extensions to search for: those of the groups and `others` that are not `unchecked`.
+pub fn request_exts(unchecked: &[String], others: &[String]) -> Vec<String> {
+    EXT_GROUPS
+        .iter()
+        .flat_map(|g| g.exts.iter().map(|e| e.to_string()))
+        .chain(others.iter().cloned())
+        .filter(|e| !unchecked.contains(e))
+        .collect()
 }
 
 #[cfg(test)]
 mod tests {
     fn strings(items: &[&str]) -> Vec<String> {
         items.iter().map(|s| s.to_string()).collect()
-    }
-
-    mod request_exts {
-        use super::strings;
-        use crate::exts::{EXT_GROUPS, request_exts};
-
-        #[test]
-        fn sends_the_checked_extensions() {
-            assert_eq!(request_exts(&strings(&["mp4", "png"])), ["mp4", "png"]);
-        }
-
-        #[test]
-        fn sends_nothing_when_every_extension_is_checked() {
-            // Any file then, also those of extensions in no group (.txt etc.).
-            let every: Vec<String> = EXT_GROUPS
-                .iter()
-                .flat_map(|g| g.exts.iter().map(|e| e.to_string()))
-                .collect();
-            assert!(request_exts(&every).is_empty());
-        }
-
-        #[test]
-        fn sends_nothing_when_nothing_is_checked() {
-            // An empty result would never be wanted: nothing checked is taken as any file.
-            assert!(request_exts(&[]).is_empty());
-        }
-
-        #[test]
-        fn leaves_out_extensions_in_no_group() {
-            // From a settings.json written by hand, or a group changed later.
-            assert_eq!(request_exts(&strings(&["txt", "mp4", "MP4"])), ["mp4"]);
-        }
     }
 
     mod ext_groups {
@@ -96,9 +58,20 @@ mod tests {
     // Others: the extensions of the open folder in no group, and the unchecked ones kept instead of
     // the checked ones (so that an extension new to the folder starts checked).
     mod request_exts_with_others {
+        use super::strings;
+        use crate::exts::request_exts;
+
         #[test]
-        #[ignore]
-        fn sends_the_extensions_left_checked() {}
+        fn sends_the_extensions_left_checked() {
+            let sent = request_exts(&strings(&["mov", "png", "jpg"]), &strings(&["txt"]));
+            assert_eq!(
+                sent,
+                [
+                    "mp4", "flv", "mkv", "webm", "avi", "wmv", "m4v", "jpeg", "gif", "bmp", "webp",
+                    "m4a", "mp3", "wav", "flac", "aac", "ogg", "txt"
+                ]
+            );
+        }
 
         #[test]
         #[ignore]

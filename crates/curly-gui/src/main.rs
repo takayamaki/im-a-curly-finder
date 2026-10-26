@@ -48,7 +48,7 @@ fn query(
     exts: Vec<String>,
 ) -> Result<Found, String> {
     let chosen: Vec<&str> = chosen.iter().map(String::as_str).collect();
-    let exts = request_exts(&exts);
+    let exts = request_exts(&exts, &[]);
     let exts: Vec<&str> = exts.iter().map(String::as_str).collect();
     session.search(&expr, &chosen, &exts, LIMIT)
 }
