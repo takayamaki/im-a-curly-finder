@@ -92,7 +92,17 @@ mod tests {
         }
 
         #[test]
-        #[ignore]
-        fn loads_no_extensions_from_a_file_saved_before_they_were_kept() {}
+        fn loads_no_extensions_from_a_file_saved_before_they_were_kept() {
+            let dir = tempfile::tempdir().unwrap();
+            let file = dir.path().join("settings.json");
+            std::fs::write(&file, r#"{ "root": "D:\\clips" }"#).unwrap();
+            assert_eq!(
+                Settings::load(&file),
+                Settings {
+                    root: Some(PathBuf::from(r"D:\clips")),
+                    exts: None,
+                }
+            );
+        }
     }
 }
