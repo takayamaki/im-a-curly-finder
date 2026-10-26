@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use curly_finder::search::Found;
-use curly_gui::exts::{EXT_GROUPS, ExtGroup, request_exts};
+use curly_gui::exts::{EXT_GROUPS, other_exts, request_exts};
 use curly_gui::root;
 use curly_gui::session::Session;
 use curly_gui::settings::Settings;
@@ -45,44 +45,56 @@ fn query(
     session: State<Arc<Session>>,
     expr: String,
     chosen: Vec<String>,
-    exts: Vec<String>,
+    unchecked: Vec<String>,
 ) -> Result<Found, String> {
     let chosen: Vec<&str> = chosen.iter().map(String::as_str).collect();
-    let exts = request_exts(&exts, &[]);
+    let exts = request_exts(&unchecked, &other_exts(&session.exts()));
     let exts: Vec<&str> = exts.iter().map(String::as_str).collect();
     session.search(&expr, &chosen, &exts, LIMIT)
 }
 
+/// A group of the extension drop-down as the page shows it.
+#[derive(Serialize)]
+struct ExtChoiceGroup {
+    name: &'static str,
+    exts: Vec<String>,
+}
+
 #[derive(Serialize)]
 struct ExtChoices {
-    groups: &'static [ExtGroup],
-    /// The checked extensions: those saved, or every one (any file) the first time
-    checked: Vec<String>,
+    /// The groups, then Others (the extensions of the open folder in no group) if there are any
+    groups: Vec<ExtChoiceGroup>,
+    /// The unchecked extensions, as saved
+    unchecked: Vec<String>,
 }
 
 #[tauri::command]
-fn ext_choices(app: AppHandle) -> ExtChoices {
-    let saved = settings_file(&app)
-        .ok()
-        .and_then(|file| Settings::load(&file).exts);
-    let every = || {
-        EXT_GROUPS
-            .iter()
-            .flat_map(|g| g.exts)
-            .map(|e| e.to_string())
-            .collect()
-    };
-    ExtChoices {
-        groups: EXT_GROUPS,
-        checked: saved.unwrap_or_else(every),
+fn ext_choices(app: AppHandle, session: State<Arc<Session>>) -> ExtChoices {
+    let mut groups: Vec<ExtChoiceGroup> = EXT_GROUPS
+        .iter()
+        .map(|g| ExtChoiceGroup {
+            name: g.name,
+            exts: g.exts.iter().map(|e| e.to_string()).collect(),
+        })
+        .collect();
+    let others = other_exts(&session.exts());
+    if !others.is_empty() {
+        groups.push(ExtChoiceGroup {
+            name: "Others",
+            exts: others,
+        });
     }
+    let unchecked = settings_file(&app)
+        .map(|file| Settings::load(&file).unchecked_exts)
+        .unwrap_or_default();
+    ExtChoices { groups, unchecked }
 }
 
 #[tauri::command]
-fn save_exts(app: AppHandle, exts: Vec<String>) -> Result<(), String> {
+fn save_exts(app: AppHandle, unchecked: Vec<String>) -> Result<(), String> {
     let file = settings_file(&app)?;
     let mut settings = Settings::load(&file);
-    settings.exts = Some(exts);
+    settings.unchecked_exts = unchecked;
     settings
         .save(&file)
         .map_err(|e| format!("Could not remember the extensions: {e}"))

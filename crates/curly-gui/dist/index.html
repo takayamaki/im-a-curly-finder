@@ -66,15 +66,19 @@ const chips = document.getElementById("chips");
 // the engine joins them to the query with AND.
 let chosen = [];
 
-// The extension drop-down. The groups come from the app (exts.rs); the checked extensions are
-// kept in settings.json. Every one or none checked means any file (the app decides, request_exts).
+// The extension drop-down. The groups come from the app (exts.rs), Others last: the extensions of
+// the open folder in no group. The unchecked extensions are kept in settings.json, so that an
+// extension new to the folder starts checked. Every one or none checked means any file (the app
+// decides, request_exts).
 const extsButton = document.getElementById("exts");
 const extsMenu = document.getElementById("exts-menu");
 let extGroups = [];
-let checkedExts = new Set();
+let uncheckedExts = new Set();
+const isChecked = ext => !uncheckedExts.has(ext);
+const extText = ext => ext === "" ? "(none)" : ext;
 
 function groupState(group) {
-  const n = group.exts.filter(e => checkedExts.has(e)).length;
+  const n = group.exts.filter(isChecked).length;
   return n === 0 ? "off" : n === group.exts.length ? "on" : "some";
 }
 
@@ -90,8 +94,8 @@ function extsLabel() {
 function showExts() {
   extsButton.textContent = extsLabel() + " ▾";
   for (const box of extsMenu.querySelectorAll("input")) {
-    if (box.dataset.ext) {
-      box.checked = checkedExts.has(box.dataset.ext);
+    if (box.dataset.ext !== undefined) {
+      box.checked = isChecked(box.dataset.ext);
     } else {
       const state = groupState(extGroups[Number(box.dataset.group)]);
       box.checked = state === "on";
@@ -102,7 +106,7 @@ function showExts() {
 
 function extsChanged() {
   showExts();
-  invoke("save_exts", { exts: [...checkedExts] }).catch(e => setStatus(String(e), true));
+  invoke("save_exts", { unchecked: [...uncheckedExts] }).catch(e => setStatus(String(e), true));
   search();
 }
 
@@ -122,14 +126,14 @@ function buildExtsMenu() {
     // A group that is on turns all of its extensions off; off or partly checked turns them all on.
     const [label, box] = checkbox(group.name, "group", () => {
       const on = groupState(group) !== "on";
-      for (const e of group.exts) on ? checkedExts.add(e) : checkedExts.delete(e);
+      for (const e of group.exts) on ? uncheckedExts.delete(e) : uncheckedExts.add(e);
       extsChanged();
     });
     box.dataset.group = i;
     extsMenu.append(label);
     for (const ext of group.exts) {
-      const [label, box] = checkbox(ext, "ext", () => {
-        checkedExts.has(ext) ? checkedExts.delete(ext) : checkedExts.add(ext);
+      const [label, box] = checkbox(extText(ext), "ext", () => {
+        isChecked(ext) ? uncheckedExts.add(ext) : uncheckedExts.delete(ext);
         extsChanged();
       });
       box.dataset.ext = ext;
@@ -159,7 +163,7 @@ document.addEventListener("keydown", e => {
 async function loadExts() {
   const choices = await invoke("ext_choices");
   extGroups = choices.groups;
-  checkedExts = new Set(choices.checked);
+  uncheckedExts = new Set(choices.unchecked);
   buildExtsMenu();
 }
 
@@ -215,7 +219,7 @@ let latest = 0;
 async function search() {
   const ticket = ++latest;
   try {
-    const found = await invoke("query", { expr: q.value, chosen, exts: [...checkedExts] });
+    const found = await invoke("query", { expr: q.value, chosen, unchecked: [...uncheckedExts] });
     if (ticket !== latest) return;
     const shown = found.entries.length;
     setStatus(shown < found.total ? `${found.total} files (showing ${shown})` : `${found.total} files`);
@@ -246,6 +250,7 @@ document.getElementById("choose").addEventListener("click", async () => {
   try {
     await invoke("open_folder", { dir });
     await showFolder();
+    await loadExts();
     await search();
   } catch (e) {
     await showFolder();
@@ -259,6 +264,7 @@ document.getElementById("rescan").addEventListener("click", async () => {
   try {
     await invoke("rescan");
     await showFolder();
+    await loadExts();
     await search();
   } catch (e) {
     setStatus(String(e), true);
