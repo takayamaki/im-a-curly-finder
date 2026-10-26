@@ -1,0 +1,28 @@
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    # Only versions out for 7 days or more: a broken or hijacked release is usually pulled by then.
+    cooldown:
+      default-days: 7
+    groups:
+      # Tauri's crates move together (tauri, tauri-build and the plugins).
+      tauri:
+        patterns: ["tauri*"]
+        update-types: [minor, patch]
+      cargo:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    # Only versions out for 7 days or more: a broken or hijacked release is usually pulled by then.
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
