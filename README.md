@@ -19,6 +19,7 @@ curly-gui.exe
 Both take the folder from `CURLY_ROOT` too.
 In the GUI, you can also choose the folder with the Folder button. It is remembered for the next start.
 The GUI opens the first one it finds of: the first argument, `CURLY_ROOT`, the folder chosen last time.
+The list is in file name order. The button next to Rescan narrows it down to kinds of files (Video, Images, Audio, or single extensions); the choice is remembered too.
 
 ## Development
 

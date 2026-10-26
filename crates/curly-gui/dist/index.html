@@ -17,6 +17,13 @@
   #status.error { color: #f77; }
   #chips { flex: none; display: flex; flex-wrap: wrap; gap: 4px; padding: 0 8px 6px; max-height: 84px; overflow-y: auto; }
   #chips:empty { display: none; }
+  /* The extension drop-down: a button and, under it, groups of check boxes. */
+  #exts-box { position: relative; display: flex; }
+  #exts-menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 10; min-width: 160px; max-height: 70vh; overflow-y: auto; padding: 6px 0; background: #2a2a2a; border: 1px solid #555; border-radius: 4px; box-shadow: 0 4px 12px #0008; }
+  #exts-menu label { display: flex; align-items: center; gap: 6px; padding: 2px 12px; white-space: nowrap; cursor: pointer; }
+  #exts-menu label:hover { background: #333; }
+  #exts-menu .ext { padding-left: 32px; }
+  #exts-menu input { accent-color: #e6a; margin: 0; }
   .chip { font-size: 12px; padding: 2px 8px; border-radius: 10px; border: 1px solid #5a3a4c; background: #2a2025; color: #e6a; }
   .chip .count { color: #a78; margin-left: 4px; }
   .chip.on { background: #e6a; color: #1e1e1e; border-color: #e6a; }
@@ -37,6 +44,10 @@
 <header>
   <button id="choose" title="Choose the folder to search">Folder…</button>
   <input id="q" placeholder="words, #tags, | for OR, - for NOT" autofocus spellcheck="false">
+  <div id="exts-box">
+    <button id="exts" title="Choose the kinds of files to list" aria-haspopup="true" aria-expanded="false">All ▾</button>
+    <div id="exts-menu" hidden></div>
+  </div>
   <button id="rescan" title="Scan the folder again">Rescan</button>
 </header>
 <div id="bar"><span id="folder"></span><span id="skipped"></span><span id="status"></span></div>
@@ -54,6 +65,103 @@ const chips = document.getElementById("chips");
 // The tags chosen by clicking a chip. They stay out of the input;
 // the engine joins them to the query with AND.
 let chosen = [];
+
+// The extension drop-down. The groups come from the app (exts.rs); the checked extensions are
+// kept in settings.json. Every one or none checked means any file (the app decides, request_exts).
+const extsButton = document.getElementById("exts");
+const extsMenu = document.getElementById("exts-menu");
+let extGroups = [];
+let checkedExts = new Set();
+
+function groupState(group) {
+  const n = group.exts.filter(e => checkedExts.has(e)).length;
+  return n === 0 ? "off" : n === group.exts.length ? "on" : "some";
+}
+
+function extsLabel() {
+  const states = extGroups.map(groupState);
+  if (states.every(s => s === "on") || states.every(s => s === "off")) return "All";
+  return extGroups
+    .filter((g, i) => states[i] !== "off")
+    .map(g => g.name + (groupState(g) === "some" ? " (some)" : ""))
+    .join(" + ");
+}
+
+function showExts() {
+  extsButton.textContent = extsLabel() + " ▾";
+  for (const box of extsMenu.querySelectorAll("input")) {
+    if (box.dataset.ext) {
+      box.checked = checkedExts.has(box.dataset.ext);
+    } else {
+      const state = groupState(extGroups[Number(box.dataset.group)]);
+      box.checked = state === "on";
+      box.indeterminate = state === "some";
+    }
+  }
+}
+
+function extsChanged() {
+  showExts();
+  invoke("save_exts", { exts: [...checkedExts] }).catch(e => setStatus(String(e), true));
+  search();
+}
+
+function checkbox(text, className, onChange) {
+  const label = document.createElement("label");
+  label.className = className;
+  const box = document.createElement("input");
+  box.type = "checkbox";
+  box.addEventListener("change", onChange);
+  label.append(box, text);
+  return [label, box];
+}
+
+function buildExtsMenu() {
+  extsMenu.replaceChildren();
+  extGroups.forEach((group, i) => {
+    // A group that is on turns all of its extensions off; off or partly checked turns them all on.
+    const [label, box] = checkbox(group.name, "group", () => {
+      const on = groupState(group) !== "on";
+      for (const e of group.exts) on ? checkedExts.add(e) : checkedExts.delete(e);
+      extsChanged();
+    });
+    box.dataset.group = i;
+    extsMenu.append(label);
+    for (const ext of group.exts) {
+      const [label, box] = checkbox(ext, "ext", () => {
+        checkedExts.has(ext) ? checkedExts.delete(ext) : checkedExts.add(ext);
+        extsChanged();
+      });
+      box.dataset.ext = ext;
+      extsMenu.append(label);
+    }
+  });
+  showExts();
+}
+
+function openExts(open) {
+  extsMenu.hidden = !open;
+  extsButton.setAttribute("aria-expanded", String(open));
+}
+
+extsButton.addEventListener("click", () => openExts(extsMenu.hidden));
+document.addEventListener("mousedown", e => {
+  if (!extsMenu.hidden && !e.target.closest("#exts-box")) openExts(false);
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && !extsMenu.hidden) {
+    openExts(false);
+    extsButton.focus();
+    e.stopPropagation();
+  }
+}, true);
+
+async function loadExts() {
+  const choices = await invoke("ext_choices");
+  extGroups = choices.groups;
+  checkedExts = new Set(choices.checked);
+  buildExtsMenu();
+}
 
 function toggleTag(tag) {
   chosen = tag.chosen ? chosen.filter(t => t !== tag.tag) : [...chosen, tag.tag];
@@ -107,7 +215,7 @@ let latest = 0;
 async function search() {
   const ticket = ++latest;
   try {
-    const found = await invoke("query", { expr: q.value, chosen });
+    const found = await invoke("query", { expr: q.value, chosen, exts: [...checkedExts] });
     if (ticket !== latest) return;
     const shown = found.entries.length;
     setStatus(shown < found.total ? `${found.total} files (showing ${shown})` : `${found.total} files`);
@@ -176,7 +284,7 @@ window.addEventListener("mousemove", async e => {
 });
 
 q.addEventListener("input", search);
-showFolder().then(async current => {
+Promise.all([showFolder(), loadExts()]).then(async ([current]) => {
   await search();
   if (current.error) setStatus(current.error, true);
 });

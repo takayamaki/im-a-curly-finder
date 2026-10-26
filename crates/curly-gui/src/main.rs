@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use curly_finder::search::Found;
+use curly_gui::exts::{EXT_GROUPS, ExtGroup, request_exts};
 use curly_gui::root;
 use curly_gui::session::Session;
 use curly_gui::settings::Settings;
@@ -40,9 +41,51 @@ fn current_folder(session: State<Arc<Session>>, startup: State<StartupError>) ->
 }
 
 #[tauri::command]
-fn query(session: State<Arc<Session>>, expr: String, chosen: Vec<String>) -> Result<Found, String> {
+fn query(
+    session: State<Arc<Session>>,
+    expr: String,
+    chosen: Vec<String>,
+    exts: Vec<String>,
+) -> Result<Found, String> {
     let chosen: Vec<&str> = chosen.iter().map(String::as_str).collect();
-    session.search(&expr, &chosen, &[], LIMIT)
+    let exts = request_exts(&exts);
+    let exts: Vec<&str> = exts.iter().map(String::as_str).collect();
+    session.search(&expr, &chosen, &exts, LIMIT)
+}
+
+#[derive(Serialize)]
+struct ExtChoices {
+    groups: &'static [ExtGroup],
+    /// The checked extensions: those saved, or every one (any file) the first time
+    checked: Vec<String>,
+}
+
+#[tauri::command]
+fn ext_choices(app: AppHandle) -> ExtChoices {
+    let saved = settings_file(&app)
+        .ok()
+        .and_then(|file| Settings::load(&file).exts);
+    let every = || {
+        EXT_GROUPS
+            .iter()
+            .flat_map(|g| g.exts)
+            .map(|e| e.to_string())
+            .collect()
+    };
+    ExtChoices {
+        groups: EXT_GROUPS,
+        checked: saved.unwrap_or_else(every),
+    }
+}
+
+#[tauri::command]
+fn save_exts(app: AppHandle, exts: Vec<String>) -> Result<(), String> {
+    let file = settings_file(&app)?;
+    let mut settings = Settings::load(&file);
+    settings.exts = Some(exts);
+    settings
+        .save(&file)
+        .map_err(|e| format!("Could not remember the extensions: {e}"))
 }
 
 #[tauri::command]
@@ -66,8 +109,11 @@ async fn open_folder(
         .await
         .map_err(|e| e.to_string())??;
     *startup.0.lock().unwrap() = None;
-    Settings { root: Some(dir) }
-        .save(&settings_file(&app)?)
+    let file = settings_file(&app)?;
+    let mut settings = Settings::load(&file);
+    settings.root = Some(dir);
+    settings
+        .save(&file)
         .map_err(|e| format!("Opened, but could not remember the folder: {e}"))
 }
 
@@ -93,7 +139,9 @@ fn main() {
             current_folder,
             query,
             rescan,
-            open_folder
+            open_folder,
+            ext_choices,
+            save_exts
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
