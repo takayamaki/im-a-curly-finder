@@ -26,16 +26,19 @@ pub const EXT_GROUPS: &[ExtGroup] = &[
 ];
 
 /// The extensions to search for, given the checked ones: none (any file) when every extension of
-/// the groups is checked.
+/// the groups is checked. Extensions in no group are left out; the rest go in the order of the
+/// groups.
 pub fn request_exts(checked: &[String]) -> Vec<String> {
-    let every = EXT_GROUPS
-        .iter()
-        .flat_map(|g| g.exts)
-        .all(|e| checked.iter().any(|c| c == e));
-    if every {
+    let all = EXT_GROUPS.iter().flat_map(|g| g.exts);
+    let kept: Vec<String> = all
+        .clone()
+        .filter(|e| checked.iter().any(|c| c == *e))
+        .map(|e| e.to_string())
+        .collect();
+    if kept.len() == all.count() {
         return Vec::new();
     }
-    checked.to_vec()
+    kept
 }
 
 #[cfg(test)]
@@ -70,8 +73,10 @@ mod tests {
         }
 
         #[test]
-        #[ignore]
-        fn leaves_out_extensions_in_no_group() {}
+        fn leaves_out_extensions_in_no_group() {
+            // From a settings.json written by hand, or a group changed later.
+            assert_eq!(request_exts(&strings(&["txt", "mp4", "MP4"])), ["mp4"]);
+        }
     }
 
     mod ext_groups {
