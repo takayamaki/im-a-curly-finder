@@ -9,6 +9,9 @@ use serde::{Deserialize, Serialize};
 pub struct Settings {
     /// The folder last opened from the GUI
     pub root: Option<PathBuf>,
+    /// The checked extensions of the drop-down (`exts::request_exts`). None: never saved (any file)
+    #[serde(default)]
+    pub exts: Option<Vec<String>>,
 }
 
 impl Settings {
@@ -43,6 +46,7 @@ mod tests {
             let file = dir.path().join("settings.json");
             let settings = Settings {
                 root: Some(PathBuf::from(r"D:\clips")),
+                ..Settings::default()
             };
             settings.save(&file).unwrap();
             assert_eq!(Settings::load(&file), settings);
@@ -61,6 +65,7 @@ mod tests {
             let file = dir.path().join("config/curly/settings.json");
             let settings = Settings {
                 root: Some(PathBuf::from(r"D:\clips")),
+                ..Settings::default()
             };
             settings.save(&file).unwrap();
             assert_eq!(Settings::load(&file), settings);
@@ -75,8 +80,16 @@ mod tests {
         }
 
         #[test]
-        #[ignore]
-        fn loads_the_checked_extensions_that_were_saved() {}
+        fn loads_the_checked_extensions_that_were_saved() {
+            let dir = tempfile::tempdir().unwrap();
+            let file = dir.path().join("settings.json");
+            let settings = Settings {
+                root: Some(PathBuf::from(r"D:\clips")),
+                exts: Some(vec!["mp4".to_string(), "png".to_string()]),
+            };
+            settings.save(&file).unwrap();
+            assert_eq!(Settings::load(&file), settings);
+        }
 
         #[test]
         #[ignore]
