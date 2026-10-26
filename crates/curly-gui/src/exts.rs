@@ -92,4 +92,38 @@ mod tests {
             );
         }
     }
+
+    // Others: the extensions of the open folder in no group, and the unchecked ones kept instead of
+    // the checked ones (so that an extension new to the folder starts checked).
+    mod request_exts_with_others {
+        #[test]
+        #[ignore]
+        fn sends_the_extensions_left_checked() {}
+
+        #[test]
+        #[ignore]
+        fn sends_nothing_when_nothing_is_unchecked() {}
+
+        #[test]
+        #[ignore]
+        fn sends_nothing_when_everything_is_unchecked() {}
+
+        #[test]
+        #[ignore]
+        fn sends_the_other_extensions_left_checked() {}
+
+        #[test]
+        #[ignore]
+        fn ignores_unchecked_extensions_that_are_not_offered() {}
+    }
+
+    mod other_exts {
+        #[test]
+        #[ignore]
+        fn are_the_extensions_of_the_folder_in_no_group() {}
+
+        #[test]
+        #[ignore]
+        fn put_files_without_an_extension_last() {}
+    }
 }

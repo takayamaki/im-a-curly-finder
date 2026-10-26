@@ -104,5 +104,9 @@ mod tests {
                 }
             );
         }
+
+        #[test]
+        #[ignore]
+        fn loads_the_unchecked_extensions_that_were_saved() {}
     }
 }

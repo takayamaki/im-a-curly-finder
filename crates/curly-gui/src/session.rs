@@ -200,5 +200,9 @@ mod tests {
                 ["a.mp4", "c.mov"]
             );
         }
+
+        #[test]
+        #[ignore]
+        fn lists_the_extensions_of_the_open_folder() {}
     }
 }
