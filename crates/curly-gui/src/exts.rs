@@ -80,8 +80,16 @@ mod tests {
     }
 
     mod ext_groups {
+        use crate::exts::EXT_GROUPS;
+
         #[test]
-        #[ignore]
-        fn are_videos_images_and_audio() {}
+        fn are_videos_images_and_audio() {
+            let names: Vec<&str> = EXT_GROUPS.iter().map(|g| g.name).collect();
+            assert_eq!(names, ["Video", "Images", "Audio"]);
+            assert_eq!(
+                EXT_GROUPS[0].exts,
+                ["mp4", "mov", "flv", "mkv", "webm", "avi", "wmv", "m4v"]
+            );
+        }
     }
 }
