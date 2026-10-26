@@ -25,13 +25,17 @@ pub const EXT_GROUPS: &[ExtGroup] = &[
     },
 ];
 
-/// Others: the extensions of the folder (`found`, as `Session::exts` gives them) in no group.
+/// Others: the extensions of the folder (`found`, as `Session::exts` gives them) in no group, with
+/// "" (the files without an extension) last.
 pub fn other_exts(found: &[String]) -> Vec<String> {
-    found
+    let mut others: Vec<String> = found
         .iter()
         .filter(|e| !EXT_GROUPS.iter().any(|g| g.exts.contains(&e.as_str())))
         .cloned()
-        .collect()
+        .collect();
+    // Stable: the rest keep their order.
+    others.sort_by_key(|e| e.is_empty());
+    others
 }
 
 /// The extensions to search for: those of the groups and `others` that are not `unchecked`. None
@@ -142,7 +146,12 @@ mod tests {
         }
 
         #[test]
-        #[ignore]
-        fn put_files_without_an_extension_last() {}
+        fn put_files_without_an_extension_last() {
+            // Shown as "(none)" at the end of Others.
+            assert_eq!(
+                other_exts(&strings(&["", "psd", "txt"])),
+                ["psd", "txt", ""]
+            );
+        }
     }
 }
