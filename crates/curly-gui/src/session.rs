@@ -165,5 +165,13 @@ mod tests {
             assert_eq!(session.root().as_deref(), Some(dir.path()));
             assert_eq!(rels(&session.search("", &[], 100).unwrap()), ["a.mp4"]);
         }
+
+        #[test]
+        #[ignore]
+        fn lists_the_files_in_file_name_order() {}
+
+        #[test]
+        #[ignore]
+        fn narrows_down_to_the_extensions_given() {}
     }
 }

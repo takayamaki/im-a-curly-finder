@@ -73,5 +73,13 @@ mod tests {
             std::fs::write(&file, "{ not json").unwrap();
             assert_eq!(Settings::load(&file), Settings::default());
         }
+
+        #[test]
+        #[ignore]
+        fn loads_the_checked_extensions_that_were_saved() {}
+
+        #[test]
+        #[ignore]
+        fn loads_no_extensions_from_a_file_saved_before_they_were_kept() {}
     }
 }
