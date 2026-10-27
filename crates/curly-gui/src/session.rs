@@ -231,5 +231,18 @@ mod tests {
             session.open(dir.path()).unwrap();
             assert_eq!(session.exts(), ["", "mp4", "txt"]);
         }
+
+        // The context menu acts only on files of the list, not on any path the page sends.
+        #[test]
+        #[ignore]
+        fn tells_that_a_file_of_the_open_folder_is_listed() {}
+
+        #[test]
+        #[ignore]
+        fn a_path_that_is_not_a_listed_file_is_not() {}
+
+        #[test]
+        #[ignore]
+        fn no_path_is_listed_before_a_folder_is_open() {}
     }
 }
