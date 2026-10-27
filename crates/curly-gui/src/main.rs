@@ -129,6 +129,76 @@ async fn open_folder(
         .map_err(|e| format!("Opened, but could not remember the folder: {e}"))
 }
 
+// ---- the context menu of a row ----
+// Only the files of the list: the page could send any path.
+
+fn listed(session: &Session, path: &str) -> Result<PathBuf, String> {
+    let path = PathBuf::from(path);
+    if session.lists(&path) {
+        Ok(path)
+    } else {
+        Err(format!("Not a file of the list: {}", path.display()))
+    }
+}
+
+/// Opens the file with the app it is associated with.
+#[tauri::command]
+fn open_file(session: State<Arc<Session>>, path: String) -> Result<(), String> {
+    let path = listed(&session, &path)?;
+    tauri_plugin_opener::open_path(&path, None::<&str>).map_err(|e| e.to_string())
+}
+
+/// Shows the Windows "Open with" dialog for the file. Not async, so it runs on the main thread,
+/// modal to the window.
+#[tauri::command]
+fn open_file_with(
+    window: tauri::WebviewWindow,
+    session: State<Arc<Session>>,
+    path: String,
+) -> Result<(), String> {
+    let path = listed(&session, &path)?;
+    open_with_dialog(&window, &path)
+}
+
+#[cfg(windows)]
+fn open_with_dialog(window: &tauri::WebviewWindow, path: &std::path::Path) -> Result<(), String> {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::UI::Shell::{
+        OAIF_ALLOW_REGISTRATION, OAIF_EXEC, OPENASINFO, SHOpenWithDialog,
+    };
+    use windows::core::{HSTRING, PCWSTR};
+
+    let hwnd = window.hwnd().map_err(|e| e.to_string())?;
+    let file = HSTRING::from(path.as_os_str());
+    let info = OPENASINFO {
+        pcszFile: PCWSTR(file.as_ptr()),
+        pcszClass: PCWSTR::null(),
+        // OAIF_EXEC: open the file with the app chosen. OAIF_ALLOW_REGISTRATION: the "Always use
+        // this app" box, left to the user.
+        oaifInFlags: OAIF_ALLOW_REGISTRATION | OAIF_EXEC,
+    };
+    // Tauri's HWND may come from another version of the windows crate.
+    unsafe { SHOpenWithDialog(Some(HWND(hwnd.0)), &info) }.or_else(|e| {
+        // Cancelling the dialog is not an error.
+        if e.code() == windows::Win32::Foundation::ERROR_CANCELLED.to_hresult() {
+            Ok(())
+        } else {
+            Err(e.to_string())
+        }
+    })
+}
+
+#[cfg(not(windows))]
+fn open_with_dialog(_window: &tauri::WebviewWindow, _path: &std::path::Path) -> Result<(), String> {
+    Err("Open with is only on Windows".to_string())
+}
+
+/// Opens the folder of the file in Explorer, with the file selected.
+#[tauri::command]
+fn show_in_folder(session: State<Arc<Session>>, path: String) -> Result<(), String> {
+    let path = listed(&session, &path)?;
+    tauri_plugin_opener::reveal_item_in_dir(&path).map_err(|e| e.to_string())
+}
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -153,7 +223,10 @@ fn main() {
             rescan,
             open_folder,
             ext_choices,
-            save_exts
+            save_exts,
+            open_file,
+            open_file_with,
+            show_in_folder
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
