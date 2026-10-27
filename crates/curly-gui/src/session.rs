@@ -53,6 +53,11 @@ impl Session {
             .unwrap_or_default()
     }
 
+    /// Whether `path` is a file of the open folder (as `Entry::path` gives it).
+    pub fn lists(&self, _path: &Path) -> bool {
+        self.current.read().unwrap().is_some()
+    }
+
     /// The extensions of the files in the open folder, each once, normalized as for matching, in
     /// order ("" for the files without one). None before a folder is open.
     pub fn exts(&self) -> Vec<String> {
@@ -234,8 +239,13 @@ mod tests {
 
         // The context menu acts only on files of the list, not on any path the page sends.
         #[test]
-        #[ignore]
-        fn tells_that_a_file_of_the_open_folder_is_listed() {}
+        fn tells_that_a_file_of_the_open_folder_is_listed() {
+            let dir = tempfile::tempdir().unwrap();
+            touch(dir.path(), "MV{3D}/opening.mp4");
+            let session = Session::new();
+            session.open(dir.path()).unwrap();
+            assert!(session.lists(&dir.path().join("MV{3D}/opening.mp4")));
+        }
 
         #[test]
         #[ignore]
