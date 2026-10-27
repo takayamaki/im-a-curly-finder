@@ -30,7 +30,7 @@
   .chip.on .count { color: #4a2a3a; }
   ul { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
   li { display: flex; gap: 8px; align-items: baseline; padding: 4px 8px; border-bottom: 1px solid #2c2c2c; cursor: grab; user-select: none; white-space: nowrap; }
-  li:hover { background: #333; }
+  li:hover, li.menu { background: #333; }
   li > span { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   /* When the window is narrow, the folder shrinks first, then the tags, then the name. */
   .name { flex: 0 1 auto; }
@@ -295,6 +295,45 @@ Promise.all([showFolder(), loadExts()]).then(async ([current]) => {
   if (current.error) setStatus(current.error, true);
 });
 q.addEventListener("keydown", e => { if (e.key === "Escape") { q.value = ""; chosen = []; search(); } });
+
+// The context menu of a row: a native menu, as in a file manager. No WebView menu elsewhere
+// (Back, Reload, Inspect...) but in the search box, which keeps cut, copy and paste.
+// No double-click action: a drag that starts with a double click would open the file.
+const { Menu } = window.__TAURI__.menu;
+
+async function act(command, path) {
+  try {
+    await invoke(command, { path });
+  } catch (e) {
+    setStatus(String(e), true);
+  }
+}
+
+document.addEventListener("contextmenu", async e => {
+  if (e.target.closest("input")) return;
+  e.preventDefault();
+  const li = e.target.closest("#list li");
+  if (!li) return;
+  const path = li.dataset.path;
+  const menu = await Menu.new({
+    items: [
+      { text: "Open", action: () => act("open_file", path) },
+      { text: "Open with…", action: () => act("open_file_with", path) },
+      { text: "Show in Explorer", action: () => act("show_in_folder", path) },
+      { item: "Separator" },
+      {
+        text: "Copy path",
+        action: () => navigator.clipboard.writeText(path).catch(err => setStatus("Copy failed: " + err, true)),
+      },
+    ],
+  });
+  li.classList.add("menu");
+  try {
+    await menu.popup();
+  } finally {
+    li.classList.remove("menu");
+  }
+});
 </script>
 </body>
 </html>

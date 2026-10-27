@@ -12,7 +12,14 @@ required-features = ["app"]
 
 [features]
 # The Tauri app. Off by default so that the library builds and tests without WebView libraries.
-app = ["dep:tauri", "dep:tauri-plugin-dialog", "dep:tauri-plugin-drag", "dep:tauri-build"]
+app = [
+    "dep:tauri",
+    "dep:tauri-plugin-dialog",
+    "dep:tauri-plugin-drag",
+    "dep:tauri-plugin-opener",
+    "dep:tauri-build",
+    "dep:windows",
+]
 
 [dependencies]
 curly-finder = { path = "../curly-finder" }
@@ -21,6 +28,11 @@ serde_json = "1.0.151"
 tauri = { version = "2.12.1", optional = true }
 tauri-plugin-dialog = { version = "2.8.1", optional = true }
 tauri-plugin-drag = { version = "2.1.1", optional = true }
+tauri-plugin-opener = { version = "2.7.2", optional = true }
+
+# "Open with…" of the context menu (SHOpenWithDialog).
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62.2", features = ["Win32_UI_Shell"], optional = true }
 
 [build-dependencies]
 tauri-build = { version = "2.7.1", optional = true }

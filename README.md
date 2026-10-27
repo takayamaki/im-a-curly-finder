@@ -6,7 +6,7 @@ See [docs/spec.md](docs/spec.md) for the tag rules and the query syntax.
 | Crate | What |
 |---|---|
 | [crates/curly-finder](crates/curly-finder) | The search engine and the `curly` CLI |
-| [crates/curly-gui](crates/curly-gui) | The GUI (Tauri). Type a query, then drag a row into another app |
+| [crates/curly-gui](crates/curly-gui) | The GUI (Tauri). Type a query, then drag a row into another app. Right-click a row to open it, open it with another app, show it in Explorer or copy its path |
 
 ```
 curly --root 'D:\clips' query 'opening #solo #3D|#2D -#self-shot'

@@ -53,6 +53,14 @@ impl Session {
             .unwrap_or_default()
     }
 
+    /// Whether `path` is a file of the open folder (as `Entry::path` gives it).
+    pub fn lists(&self, path: &Path) -> bool {
+        let current = self.current.read().unwrap();
+        current
+            .as_ref()
+            .is_some_and(|shared| shared.snapshot().entries.iter().any(|e| e.path == path))
+    }
+
     /// The extensions of the files in the open folder, each once, normalized as for matching, in
     /// order ("" for the files without one). None before a folder is open.
     pub fn exts(&self) -> Vec<String> {
@@ -102,6 +110,8 @@ mod tests {
     }
 
     mod session {
+        use std::path::Path;
+
         use super::{rels, touch};
         use crate::session::{NO_FOLDER, Session};
 
@@ -230,6 +240,32 @@ mod tests {
             let session = Session::new();
             session.open(dir.path()).unwrap();
             assert_eq!(session.exts(), ["", "mp4", "txt"]);
+        }
+
+        // The context menu acts only on files of the list, not on any path the page sends.
+        #[test]
+        fn tells_that_a_file_of_the_open_folder_is_listed() {
+            let dir = tempfile::tempdir().unwrap();
+            touch(dir.path(), "MV{3D}/opening.mp4");
+            let session = Session::new();
+            session.open(dir.path()).unwrap();
+            assert!(session.lists(&dir.path().join("MV{3D}/opening.mp4")));
+        }
+
+        #[test]
+        fn a_path_that_is_not_a_listed_file_is_not() {
+            let dir = tempfile::tempdir().unwrap();
+            touch(dir.path(), "MV/opening.mp4");
+            let session = Session::new();
+            session.open(dir.path()).unwrap();
+            assert!(!session.lists(&dir.path().join("MV")));
+            assert!(!session.lists(&dir.path().join("MV/ending.mp4")));
+            assert!(!session.lists(Path::new("/etc/passwd")));
+        }
+
+        #[test]
+        fn no_path_is_listed_before_a_folder_is_open() {
+            assert!(!Session::new().lists(Path::new("/vj/opening.mp4")));
         }
     }
 }
