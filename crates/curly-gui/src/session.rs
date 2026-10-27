@@ -264,7 +264,8 @@ mod tests {
         }
 
         #[test]
-        #[ignore]
-        fn no_path_is_listed_before_a_folder_is_open() {}
+        fn no_path_is_listed_before_a_folder_is_open() {
+            assert!(!Session::new().lists(Path::new("/vj/opening.mp4")));
+        }
     }
 }
