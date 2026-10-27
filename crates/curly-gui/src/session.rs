@@ -54,8 +54,11 @@ impl Session {
     }
 
     /// Whether `path` is a file of the open folder (as `Entry::path` gives it).
-    pub fn lists(&self, _path: &Path) -> bool {
-        self.current.read().unwrap().is_some()
+    pub fn lists(&self, path: &Path) -> bool {
+        let current = self.current.read().unwrap();
+        current
+            .as_ref()
+            .is_some_and(|shared| shared.snapshot().entries.iter().any(|e| e.path == path))
     }
 
     /// The extensions of the files in the open folder, each once, normalized as for matching, in
@@ -107,6 +110,8 @@ mod tests {
     }
 
     mod session {
+        use std::path::Path;
+
         use super::{rels, touch};
         use crate::session::{NO_FOLDER, Session};
 
@@ -248,8 +253,15 @@ mod tests {
         }
 
         #[test]
-        #[ignore]
-        fn a_path_that_is_not_a_listed_file_is_not() {}
+        fn a_path_that_is_not_a_listed_file_is_not() {
+            let dir = tempfile::tempdir().unwrap();
+            touch(dir.path(), "MV/opening.mp4");
+            let session = Session::new();
+            session.open(dir.path()).unwrap();
+            assert!(!session.lists(&dir.path().join("MV")));
+            assert!(!session.lists(&dir.path().join("MV/ending.mp4")));
+            assert!(!session.lists(Path::new("/etc/passwd")));
+        }
 
         #[test]
         #[ignore]
