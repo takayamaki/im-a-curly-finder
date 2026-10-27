@@ -54,3 +54,11 @@ cargo build --release --target x86_64-pc-windows-gnu -p curly-gui --features app
 
 We avoid the msvc target (cargo-xwin). It uses Microsoft's CRT and Windows SDK,
 whose license expects them to be used together with Visual Studio.
+
+### Releasing
+
+Pushing a tag `vX.Y.Z` runs `.github/workflows/release.yml`: the checks of CI, then the builds above,
+and a GitHub Release with `curly-finder-vX.Y.Z-windows-x64.zip` (`curly.exe`, `curly-gui.exe`,
+`WebView2Loader.dll`), `curly-finder-vX.Y.Z-linux-x64.tar.gz` (`curly`) and `SHA256SUMS.txt`.
+The tag must be the version in both `Cargo.toml` and in `tauri.conf.json`; bump them in a commit of
+their own first.
