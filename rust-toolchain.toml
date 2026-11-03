@@ -1,0 +1,8 @@
+# The Rust version for CI and local builds. Dependabot (rust-toolchain) updates it.
+# targets applies in CI. Locally mise passes only the version (RUSTUP_TOOLCHAIN), so after a
+# version bump run `rustup target add x86_64-pc-windows-gnu` again (see README).
+[toolchain]
+channel = "1.99.1"
+components = ["clippy", "rustfmt"]
+targets = ["x86_64-pc-windows-gnu"]
+profile = "minimal"
