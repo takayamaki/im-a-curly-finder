@@ -31,7 +31,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y mingw-w64
       # The version, components and targets come from rust-toolchain.toml (Dependabot updates it).
       - run: rustup toolchain install
-      - uses: Swatinem/rust-cache@v2.9.2
+      - uses: Swatinem/rust-cache@v2.9.3
 
       # The checks of ci.yml, so a release is never cut from a tag that would fail them.
       - run: cargo fmt --check
