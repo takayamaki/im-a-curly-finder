@@ -24,7 +24,7 @@ jobs:
       # rustup comes with the runner: no third-party action to install Rust.
       # The version, components and targets come from rust-toolchain.toml (Dependabot updates it).
       - run: rustup toolchain install
-      - uses: Swatinem/rust-cache@v2.9.2
+      - uses: Swatinem/rust-cache@v2.9.3
       - run: cargo fmt --check
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
@@ -37,5 +37,5 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y mingw-w64
       # The version, components and targets come from rust-toolchain.toml (Dependabot updates it).
       - run: rustup toolchain install
-      - uses: Swatinem/rust-cache@v2.9.2
+      - uses: Swatinem/rust-cache@v2.9.3
       - run: cargo clippy -p curly-gui --features app --target x86_64-pc-windows-gnu --all-targets -- -D warnings
