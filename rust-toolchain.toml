@@ -2,7 +2,7 @@
 # targets applies in CI. Locally mise passes only the version (RUSTUP_TOOLCHAIN), so after a
 # version bump run `rustup target add x86_64-pc-windows-gnu` again (see README).
 [toolchain]
-channel = "1.99.1"
+channel = "1.100.0"
 components = ["clippy", "rustfmt"]
 targets = ["x86_64-pc-windows-gnu"]
 profile = "minimal"
